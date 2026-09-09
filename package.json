@@ -1,0 +1,25 @@
+{
+  "name": "blcksnake-command",
+  "version": "1.0.0",
+  "description": "Secure ARK: Survival Ascended server and cluster administration command center",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node src/app.js",
+    "setup:show": "node src/cli/show-first-run-setup.js",
+    "tls:show-ca": "node src/cli/manage-tls.js show-ca",
+    "tls:export-ca": "node src/cli/manage-tls.js export-ca",
+    "tls:rotate": "node src/cli/manage-tls.js rotate",
+    "logs:verify": "node src/cli/logs.js verify",
+    "logs:read": "node src/cli/logs.js read",
+    "logs:errors": "node src/cli/logs.js read --min-level warn --since 24h --format pretty --limit 200"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "ssh2-sftp-client": "12.1.1"
+  }
+}

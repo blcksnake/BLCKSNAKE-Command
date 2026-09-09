@@ -1,0 +1,30 @@
+name: blcksnake-command
+
+services:
+  app:
+    image: blcksnake/blcksnake-command:1.0.0
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 30s
+    volumes:
+      - data:/app/data
+      - logs:/app/logs
+      - keystore:/app/keystore
+    ports:
+      - name: dashboard
+        target: 8787
+        published: "8787"
+        host_ip: 127.0.0.1
+        protocol: tcp
+        app_protocol: https
+volumes:
+  data: {}
+  logs: {}
+  keystore: {}
