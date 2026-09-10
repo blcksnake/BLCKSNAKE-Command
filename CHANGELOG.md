@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 - 2026-09-10
 
 - Remove CodeQL-reported regular-expression denial-of-service risks from command tokenization and profile-path redaction.
 - Accept standard OpenSSH `SHA256:...` and hexadecimal SFTP host-key fingerprints.
