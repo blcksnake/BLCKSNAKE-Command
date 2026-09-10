@@ -1,8 +1,10 @@
 import crypto from 'node:crypto';
 import { isPrivateNetworkAddress } from '../adapters/rcon/source-rcon.js';
 import { applyDefaults } from '../config.js';
+import { announcementMessageMaxLength, codePointLength } from './announcement-policy.js';
 import { encodeManagedTlsIdentity, materializeManagedConfig } from '../managed-instance.js';
 import { readManagedKeyFile } from '../security/managed-keystore.js';
+import { normalizeSshSha256Fingerprint } from './ssh-fingerprint.js';
 import { generateInstanceTlsIdentity } from '../security/instance-tls.js';
 
 const SERVER_FIELDS = new Set([
@@ -17,7 +19,7 @@ const DISCORD_FIELDS = new Set([
   'enabled', 'token', 'clearToken', 'applicationId', 'guildId', 'chatChannelId', 'auditChannelId',
   'adminRoleIds', 'moderatorRoleIds', 'relayRoleIds', 'allowUnlinkedChat', 'registerCommands',
 ]);
-const MODERATION_FIELDS = new Set(['allowRawRcon', 'rawRconAllowlist']);
+const MODERATION_FIELDS = new Set(['allowRawRcon', 'rawRconAllowlist', 'announcementTemplates']);
 const ANALYTICS_FIELDS = new Set(['enabled']);
 const SETTINGS_FIELDS = new Set(['clusterName', 'servers', 'discord', 'analytics', 'moderation']);
 const UPDATE_FIELDS = new Set([
@@ -124,15 +126,18 @@ function normalizeProfile(raw, current, serverHost) {
   if (directories.some((directory) => !remoteDirectory(directory))) {
     fail(400, 'invalid_settings', 'Profile directories must be canonical absolute POSIX paths.');
   }
+  const rawFingerprint = text(source.hostKeySha256, 'SFTP host-key fingerprint', { maximum: 64 });
+  const hostKeySha256 = rawFingerprint ? normalizeSshSha256Fingerprint(rawFingerprint) : '';
+  if ((enabled || rawFingerprint) && !hostKeySha256) {
+    fail(400, 'invalid_settings', 'SFTP host-key fingerprint must be 64 hexadecimal characters or OpenSSH SHA256:base64 form.');
+  }
   const output = {
     enabled,
     host: text(source.host || serverHost, 'SFTP host', { minimum: 1, maximum: 255 }),
     port: integer(source.port, 'SFTP port', 1, 65_535),
     username: text(source.username, 'SFTP username', { maximum: 128 }),
     password,
-    hostKeySha256: text(source.hostKeySha256, 'SFTP host-key fingerprint', {
-      maximum: 64, pattern: enabled ? /^[a-f0-9]{64}$/iu : /^(?:[a-f0-9]{64})?$/iu,
-    }).toLocaleLowerCase('en-US'),
+    hostKeySha256,
     mapName: text(source.mapName, 'Profile map name', {
       maximum: 64, pattern: enabled ? /^[A-Za-z0-9_-]{1,64}$/u : /^(?:[A-Za-z0-9_-]{1,64})?$/u,
     }),
@@ -203,9 +208,34 @@ function normalizeDiscord(raw, current) {
   return output;
 }
 
-function normalizeModeration(raw, current = {}) {
+function normalizeAnnouncementTemplates(raw, current, maximum) {
+  if (raw == null) return structuredClone(current ?? {});
+  const source = record(raw, 'Announcement templates');
+  const entries = Object.entries(source);
+  if (entries.length > 32) fail(400, 'invalid_settings', 'Announcement templates are limited to 32 entries.');
+  const output = {}; const names = new Set();
+  for (const [rawName, rawMessage] of entries) {
+    const name = text(rawName, 'Announcement template name', {
+      minimum: 1, maximum: 40, pattern: /^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$/u,
+    });
+    const canonical = name.toLocaleLowerCase('en-US');
+    if (['__proto__', 'constructor', 'prototype'].includes(canonical)) {
+      fail(400, 'invalid_settings', 'Announcement template name is reserved.');
+    }
+    if (names.has(canonical)) fail(400, 'invalid_settings', 'Announcement template names must be unique.');
+    names.add(canonical);
+    const message = text(rawMessage, `Announcement template ${name}`, { minimum: 1, maximum: maximum * 2 });
+    if (codePointLength(message) > maximum) {
+      fail(400, 'invalid_settings', `Announcement template ${name} must contain at most ${maximum} characters.`);
+    }
+    output[name] = message;
+  }
+  return output;
+}
+
+function normalizeModeration(raw, current = {}, announcementMaximum = 400) {
   if (raw == null) return structuredClone(current);
-  const source = exact(raw, MODERATION_FIELDS, 'Advanced console settings');
+  const source = exact(raw, MODERATION_FIELDS, 'Moderation settings', new Set(['announcementTemplates']));
   const allowRawRcon = flag(source.allowRawRcon, 'Allowlisted console enabled');
   const rawRconAllowlist = stringArray(source.rawRconAllowlist, 'Allowlisted console verbs', {
     maximum: 64, pattern: /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u,
@@ -213,7 +243,15 @@ function normalizeModeration(raw, current = {}) {
   if (allowRawRcon && rawRconAllowlist.length === 0) {
     fail(400, 'invalid_settings', 'The advanced console requires at least one allowlisted command verb.');
   }
-  return { ...structuredClone(current), allowRawRcon, rawRconAllowlist };
+  return {
+    ...structuredClone(current),
+    allowRawRcon,
+    rawRconAllowlist,
+    announcementTemplates: normalizeAnnouncementTemplates(
+      source.announcementTemplates, current.announcementTemplates, announcementMaximum,
+    ),
+    announcementTemplatesInitialized: true,
+  };
 }
 
 function normalizeAnalytics(raw, current = {}) {
@@ -237,7 +275,11 @@ function normalizeSettings(raw, currentRuntime) {
     servers,
     discord: normalizeDiscord(source.discord, currentRuntime.discord),
     analytics: normalizeAnalytics(source.analytics, currentRuntime.analytics),
-    moderation: normalizeModeration(source.moderation, currentRuntime.moderation),
+    moderation: normalizeModeration(
+      source.moderation,
+      currentRuntime.moderation,
+      announcementMessageMaxLength(currentRuntime.chat?.gameMaxLength),
+    ),
   };
 }
 
@@ -327,6 +369,7 @@ export function projectManagedSettings(installation, {
       moderation: {
         allowRawRcon: Boolean(runtime.moderation?.allowRawRcon),
         rawRconAllowlist: [...(runtime.moderation?.rawRconAllowlist ?? [])],
+        announcementTemplates: { ...(runtime.moderation?.announcementTemplates ?? {}) },
       },
     },
   };

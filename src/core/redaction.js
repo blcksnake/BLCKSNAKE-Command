@@ -13,7 +13,6 @@ const LABELED_IDENTIFIER_PATTERN = /\b(remote[_-]?(?:address|ip)|client[_-]?ip|p
 const PEM_PRIVATE_KEY_PATTERN = /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z0-9]+ )*PRIVATE KEY-----|$)/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{10,}\b/g;
 const AWS_ACCESS_KEY_PATTERN = /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g;
-const PROFILE_PATH_PATTERN = /(?:[A-Za-z]:)?[\\/](?:[^\s"'`()\[\]{},;]+[\\/])*[^\s"'`()\[\]{},;]*\.arkprofile\b/gi;
 const OPENSSH_FINGERPRINT_PATTERN = /\bSHA256:[A-Za-z0-9+/]{43}=?(?![A-Za-z0-9+/=])/g;
 const HEX_FINGERPRINT_PATTERN = /\b[a-f0-9]{64}\b/gi;
 const EOS_ID_PATTERN = /\b[a-f0-9]{32}\b/gi;
@@ -86,6 +85,56 @@ function redactJsonScalarProperties(value) {
   });
 }
 
+function isProfilePathDelimiter(character) {
+  return character == null || /\s/u.test(character) || '"\'`()[]{},;'.includes(character);
+}
+
+/** Redact absolute profile paths with a bounded single pass over each text token. */
+function redactProfilePaths(value) {
+  const extension = '.arkprofile';
+  const chunks = [];
+  let tokenStart = 0;
+
+  while (tokenStart < value.length) {
+    if (isProfilePathDelimiter(value[tokenStart])) {
+      chunks.push(value[tokenStart]);
+      tokenStart += 1;
+      continue;
+    }
+
+    let tokenEnd = tokenStart + 1;
+    while (tokenEnd < value.length && !isProfilePathDelimiter(value[tokenEnd])) tokenEnd += 1;
+    const token = value.slice(tokenStart, tokenEnd);
+    const firstSeparator = token.search(/[\\/]/u);
+    if (firstSeparator < 0) {
+      chunks.push(token);
+      tokenStart = tokenEnd;
+      continue;
+    }
+
+    const pathStart = firstSeparator >= 2
+      && token[firstSeparator - 1] === ':'
+      && /[A-Za-z]/u.test(token[firstSeparator - 2])
+      ? firstSeparator - 2 : firstSeparator;
+    const lowerToken = token.toLocaleLowerCase('en-US');
+    let profileEnd = -1;
+    let searchFrom = firstSeparator + 1;
+    while (searchFrom < token.length) {
+      const found = lowerToken.indexOf(extension, searchFrom);
+      if (found < 0) break;
+      const end = found + extension.length;
+      if (end === token.length || !/[A-Za-z0-9_]/u.test(token[end])) profileEnd = end;
+      searchFrom = found + extension.length;
+    }
+
+    if (profileEnd < 0) chunks.push(token);
+    else chunks.push(token.slice(0, pathStart), '[PROFILE PATH REDACTED]', token.slice(profileEnd));
+    tokenStart = tokenEnd;
+  }
+
+  return chunks.join('');
+}
+
 /** Collect configured values that must never cross an outbound text boundary. */
 export function configuredRedactionSecrets(config = {}) {
   const persistence = config.persistence ?? {};
@@ -144,8 +193,8 @@ export function redactText(value, secrets = []) {
     .replace(AUTHORIZATION_PATTERN, `$1${REDACTED}`))
     .replace(URL_QUERY_CREDENTIAL_PATTERN, `$1${REDACTED}`)
     .replace(LABELED_SECRET_PATTERN, (_match, key, separator) => `${key}${separator}${REDACTED}`)
-    .replace(LABELED_IDENTIFIER_PATTERN, (_match, key, separator) => `${key}${separator}[IDENTIFIER REDACTED]`)
-    .replace(PROFILE_PATH_PATTERN, '[PROFILE PATH REDACTED]')
+    .replace(LABELED_IDENTIFIER_PATTERN, (_match, key, separator) => `${key}${separator}[IDENTIFIER REDACTED]`);
+  text = redactProfilePaths(text)
     .replace(JWT_PATTERN, '[TOKEN REDACTED]')
     .replace(DISCORD_TOKEN_PATTERN, REDACTED)
     .replace(AWS_ACCESS_KEY_PATTERN, '[ACCESS KEY REDACTED]')

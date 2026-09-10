@@ -3,12 +3,12 @@ import path from 'node:path';
 import { Writable } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import SftpClient from 'ssh2-sftp-client';
+import { normalizeSshSha256Fingerprint } from '../../core/ssh-fingerprint.js';
 import { MAX_ASA_PROFILE_BYTES, parseAsaProfile } from './asa-profile-parser.js';
 
 const EOS_ID_PATTERN = /^[a-f0-9]{32}$/i;
-const HOST_KEY_HEX_PATTERN = /^[a-f0-9]{64}$/i;
 const SERVER_ID_PATTERN = /^[a-z0-9_-]{1,32}$/i;
-const MODERN_SSH_ALGORITHMS = Object.freeze({
+export const MODERN_SSH_ALGORITHMS = Object.freeze({
   kex: Object.freeze([
     'curve25519-sha256', 'curve25519-sha256@libssh.org',
     'ecdh-sha2-nistp256', 'ecdh-sha2-nistp384', 'ecdh-sha2-nistp521',
@@ -66,12 +66,9 @@ function positiveInteger(value, field, minimum, maximum) {
 
 function normalizeHostKeyFingerprint(value) {
   const fingerprint = requiredText(value, 'SFTP host-key SHA-256 fingerprint', 128);
-  if (HOST_KEY_HEX_PATTERN.test(fingerprint)) return fingerprint.toLocaleLowerCase('en-US');
-  const match = fingerprint.match(/^SHA256:([A-Za-z0-9+/]{43}=?)$/);
-  if (!match) fail('SFTP host-key SHA-256 fingerprint must be 64 hexadecimal characters or OpenSSH SHA256:base64 form');
-  const bytes = Buffer.from(match[1], 'base64');
-  if (bytes.length !== 32) fail('SFTP host-key SHA-256 fingerprint is invalid');
-  return bytes.toString('hex');
+  const normalized = normalizeSshSha256Fingerprint(fingerprint);
+  if (!normalized) fail('SFTP host-key SHA-256 fingerprint must be 64 hexadecimal characters or OpenSSH SHA256:base64 form');
+  return normalized;
 }
 
 function normalizeDirectory(value) {
@@ -96,8 +93,10 @@ function normalizeDirectories({ directory, directories }) {
 }
 
 function hostKeyMatches(actual, expected) {
-  if (typeof actual !== 'string' || !HOST_KEY_HEX_PATTERN.test(actual)) return false;
-  const left = Buffer.from(actual, 'hex');
+  if (typeof actual !== 'string') return false;
+  const normalized = normalizeSshSha256Fingerprint(actual);
+  if (!normalized) return false;
+  const left = Buffer.from(normalized, 'hex');
   const right = Buffer.from(expected, 'hex');
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
@@ -182,7 +181,8 @@ function safeAccessError(error, serverId) {
   const message = String(error?.message ?? '');
   let code = 'SFTP_READ_FAILED';
   if (/authenticat/i.test(message) || error?.level === 'client-authentication') code = 'SFTP_AUTH_FAILED';
-  else if (/host.?key/i.test(message) || error?.code === 'HOST_KEY_REJECTED') code = 'HOST_KEY_REJECTED';
+  else if (/host.?key|host denied\s*\(verification failed\)/i.test(message)
+    || error?.code === 'HOST_KEY_REJECTED') code = 'HOST_KEY_REJECTED';
   else if (/timed?\s*out/i.test(message) || error?.code === 'ETIMEDOUT') code = 'SFTP_TIMEOUT';
   else if (typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]{1,63}$/.test(error.code)) code = error.code;
   return new SftpProfileSourceError(`Read-only SFTP profile access failed on ${serverId}`, code, { cause: error });

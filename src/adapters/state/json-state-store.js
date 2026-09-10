@@ -8,6 +8,8 @@ import {
   validatePasswordVerifier,
 } from '../../core/operator-credentials.js';
 import { normalizeName, normalizeWhitespace } from '../../core/sanitize.js';
+import { moderationNoteId, normalizeModerationNoteType, validModerationNoteId } from '../../core/moderation-notes.js';
+import { normalizeOperatorActionGrants } from '../../core/operator-permissions.js';
 import {
   cleanDiscordUserId,
   cleanItemKey,
@@ -34,10 +36,10 @@ const OPERATOR_ACTOR_PATTERN = /^(?:bootstrap|system|local:tls-rotate|op_[A-Za-z
 const OPERATOR_ACCOUNT_FIELDS = new Set([
   'id', 'username', 'usernameKey', 'role', 'enabled', 'owner', 'passwordVerifier',
   'mustChangePassword', 'authRevision', 'recordRevision', 'createdAt', 'updatedAt',
-  'createdBy', 'updatedBy',
+  'createdBy', 'updatedBy', 'actionGrants',
 ]);
 const OPERATOR_UPDATE_FIELDS = new Set([
-  'role', 'enabled', 'passwordVerifier', 'mustChangePassword', 'updatedAt', 'updatedBy',
+  'role', 'enabled', 'passwordVerifier', 'mustChangePassword', 'updatedAt', 'updatedBy', 'actionGrants',
 ]);
 const RESERVED_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const INSTALLATION_SETTINGS_INPUT_FIELDS = new Set(['version', 'configured', 'configuration']);
@@ -335,7 +337,7 @@ function normalizeOperatorAccount(value, directoryKey, { allowMissingUpdatedBy =
     account,
     OPERATOR_ACCOUNT_FIELDS,
     'Operator account',
-    allowMissingUpdatedBy ? new Set(['updatedBy']) : new Set(),
+    allowMissingUpdatedBy ? new Set(['updatedBy', 'actionGrants']) : new Set(['actionGrants']),
   );
   const identity = normalizeOperatorUsername(account.username);
   if (account.username !== identity.username || account.usernameKey !== identity.key || directoryKey !== identity.key) {
@@ -361,6 +363,7 @@ function normalizeOperatorAccount(value, directoryKey, { allowMissingUpdatedBy =
     owner: account.owner,
     passwordVerifier: clonePasswordVerifier(account.passwordVerifier),
     mustChangePassword: account.mustChangePassword,
+    actionGrants: normalizeOperatorActionGrants(account.actionGrants, { role }),
     authRevision: cleanOperatorRevision(account.authRevision, 'Operator authRevision'),
     recordRevision: cleanOperatorRevision(account.recordRevision, 'Operator recordRevision'),
     createdAt,
@@ -531,9 +534,9 @@ function cloneOperatorAccount(account, { safe = false } = {}) {
   if (!account) return null;
   if (safe) {
     const { passwordVerifier: _passwordVerifier, usernameKey: _usernameKey, ...publicAccount } = account;
-    return { ...publicAccount };
+    return { ...publicAccount, actionGrants: [...(publicAccount.actionGrants ?? [])] };
   }
-  return { ...account, passwordVerifier: { ...account.passwordVerifier } };
+  return { ...account, actionGrants: [...(account.actionGrants ?? [])], passwordVerifier: { ...account.passwordVerifier } };
 }
 
 function freshState() {
@@ -833,6 +836,9 @@ export class JsonStateStore {
       const enabled = Object.hasOwn(requested, 'enabled') ? requested.enabled : existing.enabled;
       const mustChangePassword = Object.hasOwn(requested, 'mustChangePassword')
         ? requested.mustChangePassword : existing.mustChangePassword;
+      const actionGrants = role === 'admin' ? [] : Object.hasOwn(requested, 'actionGrants')
+        ? normalizeOperatorActionGrants(requested.actionGrants, { role })
+        : normalizeOperatorActionGrants(existing.actionGrants, { role });
       if (typeof enabled !== 'boolean' || typeof mustChangePassword !== 'boolean') {
         throw new Error('Operator account flags must be booleans');
       }
@@ -847,6 +853,7 @@ export class JsonStateStore {
       const updatedBy = Object.hasOwn(requested, 'updatedBy')
         ? cleanOperatorActor(requested.updatedBy, 'Operator updatedBy') : existing.updatedBy;
       const authorizationChanged = role !== existing.role || enabled !== existing.enabled
+        || JSON.stringify(actionGrants) !== JSON.stringify(existing.actionGrants ?? [])
         || !passwordVerifiersEqual(passwordVerifier, existing.passwordVerifier);
       if (existing.recordRevision === Number.MAX_SAFE_INTEGER
         || (authorizationChanged && existing.authRevision === Number.MAX_SAFE_INTEGER)) {
@@ -858,6 +865,7 @@ export class JsonStateStore {
         enabled,
         passwordVerifier: { ...passwordVerifier },
         mustChangePassword,
+        actionGrants,
         authRevision: existing.authRevision + (authorizationChanged ? 1 : 0),
         recordRevision: existing.recordRevision + 1,
         updatedAt,
@@ -1173,12 +1181,12 @@ export class JsonStateStore {
     });
   }
 
-  async addModerationNote(playerId, { text, actor } = {}) {
+  async addModerationNote(playerId, { text, actor, type = 'note' } = {}) {
     const key = String(playerId ?? '').trim(); const note = normalizeWhitespace(text);
     if (!key || !note) throw new Error('A player ID and note are required');
-    const normalizedActor = normalizeWhitespace(actor);
+    const normalizedActor = normalizeWhitespace(actor); const normalizedType = normalizeModerationNoteType(type);
     return this.enqueueMutation(async () => {
-      const saved = { text: note, actor: normalizedActor, at: this.now() };
+      const saved = { text: note, actor: normalizedActor, type: normalizedType, at: this.now() };
       const notes = [...(this.state.moderationNotes[key] ?? []), saved].slice(-100);
       const moderationNotes = { ...this.state.moderationNotes, [key]: notes };
       await this.commitMutation({ ...this.state, moderationNotes });
@@ -1188,6 +1196,28 @@ export class JsonStateStore {
 
   listModerationNotes(playerId, limit = 5) {
     return (this.state.moderationNotes[String(playerId ?? '').trim()] ?? []).slice(-limit).reverse();
+  }
+
+  listModerationNotesWithIds(playerId, limit = 5) {
+    const key = String(playerId ?? '').trim();
+    const notes = this.state.moderationNotes[key] ?? [];
+    return notes.map((note, index) => ({ ...note, id: moderationNoteId(key, note, index) })).slice(-limit).reverse();
+  }
+
+  async removeModerationNote(playerId, noteId) {
+    const key = String(playerId ?? '').trim(); const id = validModerationNoteId(noteId);
+    if (!key || !id) throw new Error('A player ID and valid moderation note ID are required');
+    return this.enqueueMutation(async () => {
+      const current = this.state.moderationNotes[key] ?? [];
+      const index = current.findIndex((note, candidate) => moderationNoteId(key, note, candidate) === id);
+      if (index < 0) return false;
+      const nextNotes = current.filter((_, candidate) => candidate !== index);
+      const moderationNotes = { ...this.state.moderationNotes };
+      if (nextNotes.length) moderationNotes[key] = nextNotes;
+      else delete moderationNotes[key];
+      await this.commitMutation({ ...this.state, moderationNotes });
+      return true;
+    });
   }
 
   listScheduledRestarts() { return Object.entries(this.state.scheduledRestarts).map(([serverId, restart]) => ({ serverId, ...restart })); }

@@ -41,11 +41,15 @@ Open **Settings** and configure:
 5. Whether to share optional product analytics.
 6. Any advanced RCON verbs you intend to allow.
 
-Apply the settings and restart when prompted:
+Use **Apply & restart** in Settings. With the supplied Compose configuration, Docker brings the service back automatically. You can also restart it manually:
 
 ```bash
 docker compose restart app
 ```
+
+Use **Operators → Permissions** to give individual moderators selected operational rights such as item/XP grants, bans, save-world, PlayerDataID refresh, or join-allowlist management. Critical settings and destructive tools stay administrator-only. Administrators can also delete individual notes from a player's protected staff record.
+
+Five starter broadcasts are available under **Settings → Broadcast templates**. Administrators can add, edit, restore, or delete reusable messages, then activate changes with **Apply & restart**. Player staff records attribute new entries to the responsible username and automatically retain warnings, Cluster Chat mute changes, kicks, and bans alongside categorized manual notes.
 
 ## Docker commands
 

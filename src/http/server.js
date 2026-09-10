@@ -32,6 +32,7 @@ const ROUTINE_CLIENT_ERROR_CODES = new Set([
   'ERR_SSL_UNEXPECTED_EOF_WHILE_READING',
 ]);
 const TLS_CLIENT_ERROR_PATTERN = /^(?:ERR_SSL_|ERR_TLS_)/u;
+const ROUTINE_TLS_CLIENT_ALERT_PATTERN = /ALERT_(?:BAD_CERTIFICATE|CERTIFICATE_UNKNOWN|UNKNOWN_CA)$/u;
 // A loopback plaintext request is a common stale-bookmark or health-probe
 // mistake and is safe to keep out of the warning feed because TLS still
 // rejects it. Unknown TLS/protocol failures remain warnings even on loopback:
@@ -73,6 +74,9 @@ function clientErrorReason(stage, error) {
     ? 'tls_handshake' : 'protocol';
   if (ROUTINE_CLIENT_ERROR_CODES.has(code)) {
     return { stage: effectiveStage, routine: true, reasonCode: 'peer_disconnect' };
+  }
+  if (ROUTINE_TLS_CLIENT_ALERT_PATTERN.test(code)) {
+    return { stage: 'tls_handshake', routine: true, reasonCode: 'client_certificate_rejected' };
   }
   if (code === 'ERR_SSL_HTTP_REQUEST') {
     return { stage: 'tls_handshake', routine: false, reasonCode: 'plaintext_http' };
@@ -198,9 +202,10 @@ function logRoute(pathname) {
     '/favicon.ico', '/brand/favicon-32.png', '/brand/app-icon-192.png', '/brand/app-icon-512.png',
     '/brand/blcksnake-mark.png', '/brand/site.webmanifest',
     '/dashboard-client.js', '/admin/announce', '/admin/api/auth-mode', '/admin/api/session',
-    '/admin/api/setup', '/admin/api/session/password', '/admin/api/operators',
+    '/admin/api/setup', '/admin/api/session/password', '/admin/api/session/reauthenticate', '/admin/api/operators',
     '/dashboard-ca.pem', '/admin/api/settings', '/admin/api/settings/automation-token/ack',
-    '/admin/api/bootstrap', '/admin/api/players', '/admin/api/players/record', '/admin/api/players/identifiers', '/admin/api/items', '/admin/api/activity',
+    '/admin/api/settings/sftp-host-key', '/admin/api/settings/restart',
+    '/admin/api/bootstrap', '/admin/api/players', '/admin/api/players/record', '/admin/api/players/notes', '/admin/api/players/identifiers', '/admin/api/items', '/admin/api/activity',
     '/admin/api/diagnostics', '/admin/api/actions/preview', '/admin/api/actions/execute',
   ]);
   if (known.has(pathname)) return pathname;
@@ -243,15 +248,17 @@ function readTlsPassphrase(file) {
 export class HttpService {
   constructor({
     config, bridge, state = null, metrics, logger = null, settingsService = null, onOwnerSetupCompleted = null,
+    sftpHostKeyScanner = undefined, onRestartRequested = null,
   } = {}) {
     this.config = config; this.bridge = bridge; this.metrics = metrics; this.logger = logger;
-    this.settingsService = settingsService; this.server = null; this.requestServer = null;
+    this.settingsService = settingsService; this.onRestartRequested = onRestartRequested; this.server = null; this.requestServer = null;
     this.clientSockets = new Set();
     this.rejectedClientSockets = new WeakSet();
     this.clientRejectionWindows = new Map();
     this.adminApi = new AdminApi({
       config, bridge, state: state ?? bridge?.state, metrics, logger, statusProjector: publicStatus,
-      settingsService, onOwnerSetupCompleted,
+      settingsService, onOwnerSetupCompleted, onRestartRequested,
+      ...(sftpHostKeyScanner ? { sftpHostKeyScanner } : {}),
     });
   }
 
@@ -384,12 +391,23 @@ export class HttpService {
         this.adminApi.assertJson(request);
         const body = await readJson(request, 16_384); return this.writeAdminResult(response, await this.adminApi.changePassword(request, body));
       }
+      if (request.method === 'POST' && url.pathname === '/admin/api/session/reauthenticate') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 8_192); return this.writeAdminResult(response, {
+          body: await this.adminApi.reauthenticateSession(request, body),
+        });
+      }
       if (request.method === 'GET' && url.pathname === '/admin/api/bootstrap') return this.writeAdminResult(response, { body: this.adminApi.bootstrap(request) });
       if (request.method === 'GET' && url.pathname === '/admin/api/players') return this.writeAdminResult(response, { body: this.adminApi.players(request, url) });
       if (request.method === 'POST' && url.pathname === '/admin/api/players/record') {
         this.adminApi.assertJson(request);
         const body = await readJson(request, 2_048);
         return this.writeAdminResult(response, await this.adminApi.playerRecord(request, body));
+      }
+      if (request.method === 'DELETE' && url.pathname === '/admin/api/players/notes') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 2_048);
+        return this.writeAdminResult(response, { body: await this.adminApi.deletePlayerNote(request, body) });
       }
       if (request.method === 'POST' && url.pathname === '/admin/api/players/identifiers') {
         this.adminApi.assertJson(request);
@@ -405,6 +423,18 @@ export class HttpService {
         this.adminApi.authorizeUpdateSettings(request);
         const body = await readJson(request, 1024 * 1024);
         return this.writeAdminResult(response, { body: await this.adminApi.updateSettings(request, body) });
+      }
+      if (request.method === 'POST' && url.pathname === '/admin/api/settings/sftp-host-key') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 2_048);
+        return this.writeAdminResult(response, { body: await this.adminApi.scanSftpFingerprint(request, body) });
+      }
+      if (request.method === 'POST' && url.pathname === '/admin/api/settings/restart') {
+        this.adminApi.assertJson(request);
+        await readJson(request, 512);
+        const body = this.adminApi.restartApplication(request);
+        response.once('finish', () => { setTimeout(() => { void this.onRestartRequested?.(); }, 150); });
+        return this.writeAdminResult(response, { status: 202, body });
       }
       if (request.method === 'POST' && url.pathname === '/admin/api/settings/automation-token/ack') {
         this.adminApi.assertJson(request);

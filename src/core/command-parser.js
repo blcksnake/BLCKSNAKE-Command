@@ -1,9 +1,54 @@
-export function tokenizeCommand(input) {
-  const tokens = [];
-  const regex = /"((?:\\.|[^"])*)"|'((?:\\.|[^'])*)'|(\S+)/g;
-  for (const match of String(input ?? '').matchAll(regex)) {
-    tokens.push((match[1] ?? match[2] ?? match[3]).replace(/\\([\\"'])/g, '$1'));
+function isWhitespace(character) {
+  return /\s/u.test(character);
+}
+
+function unescapeCommandToken(value) {
+  let result = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    const next = value[index + 1];
+    if (character === '\\' && (next === '\\' || next === '"' || next === "'")) {
+      result += next;
+      index += 1;
+    } else result += character;
   }
+  return result;
+}
+
+/** Tokenize operator commands in one pass so hostile input cannot trigger regex backtracking. */
+export function tokenizeCommand(input) {
+  const value = String(input ?? '');
+  const tokens = [];
+  let index = 0;
+
+  while (index < value.length) {
+    while (index < value.length && isWhitespace(value[index])) index += 1;
+    if (index >= value.length) break;
+
+    const quote = value[index] === '"' || value[index] === "'" ? value[index] : null;
+    if (quote) {
+      let cursor = index + 1;
+      while (cursor < value.length) {
+        if (value[cursor] === '\\' && cursor + 1 < value.length) {
+          cursor += 2;
+          continue;
+        }
+        if (value[cursor] === quote) break;
+        cursor += 1;
+      }
+      if (cursor < value.length) {
+        tokens.push(unescapeCommandToken(value.slice(index + 1, cursor)));
+        index = cursor + 1;
+        continue;
+      }
+    }
+
+    let cursor = index;
+    while (cursor < value.length && !isWhitespace(value[cursor])) cursor += 1;
+    tokens.push(unescapeCommandToken(value.slice(index, cursor)));
+    index = cursor;
+  }
+
   return tokens;
 }
 

@@ -62,6 +62,7 @@ export class AnalyticsClient {
     this.timer = null;
     this.startedAt = null;
     this.context = safeContext();
+    this.lastDeliveryReason = '';
   }
 
   get active() {
@@ -70,7 +71,7 @@ export class AnalyticsClient {
   }
 
   async send(event, { uptimeSeconds = 0, attempts = 1 } = {}) {
-    if (!this.active) return false;
+    if (!this.active) { this.lastDeliveryReason = 'collector_not_configured'; return false; }
     const payload = createAnalyticsPayload({
       event, installationId: this.installationId, context: this.context, now: this.now(), uptimeSeconds,
     });
@@ -91,13 +92,18 @@ export class AnalyticsClient {
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
         if (response.ok) {
+          this.lastDeliveryReason = '';
           this.logger?.info?.('Optional analytics delivered', {
             event: 'analytics.delivery_succeeded', analyticsEvent: event, outcome: 'succeeded',
           });
           return true;
         }
-        lastReason = `collector_http_${response.status}`;
-        const retryable = response.status === 403 || response.status === 408 || response.status === 429
+        lastReason = response.status === 403 && response.headers?.get?.('cf-mitigated') === 'challenge'
+          ? 'collector_browser_challenge' : `collector_http_${response.status}`;
+        // A Cloudflare browser challenge cannot be completed by a server process,
+        // so retrying it only duplicates the same rejected initial contact.
+        const retryable = (response.status === 403 && lastReason !== 'collector_browser_challenge')
+          || response.status === 408 || response.status === 429
           || response.status >= 500;
         if (!retryable) break;
       } catch (error) {
@@ -107,6 +113,7 @@ export class AnalyticsClient {
     this.logger?.warn?.('Optional analytics delivery failed', {
       event: 'analytics.delivery_failed', reasonCode: lastReason,
     });
+    this.lastDeliveryReason = lastReason;
     return false;
   }
 
@@ -139,7 +146,11 @@ export class AnalyticsClient {
     this.scheduleHeartbeat();
     if (!changed) return { attempted: false, delivered: false };
     if (!this.active) return { attempted: false, delivered: false };
-    return { attempted: true, delivered: await this.send('analytics_enabled', { attempts: 2 }) };
+    const delivered = await this.send('analytics_enabled', { attempts: 2 });
+    return {
+      attempted: true, delivered,
+      ...(!delivered && this.lastDeliveryReason ? { reasonCode: this.lastDeliveryReason } : {}),
+    };
   }
 
   async stop() {

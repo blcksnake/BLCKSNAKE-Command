@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   RESTART_MAX_DELAY_MINUTES, announcementMessageMaxLength, codePointLength, restartNotice,
 } from './core/announcement-policy.js';
+import { normalizeSshSha256Fingerprint } from './core/ssh-fingerprint.js';
 import { isPathWithin } from './core/filesystem.js';
 import { isLoopbackHost } from './core/network.js';
 
@@ -34,6 +35,14 @@ const DEFAULT_PROFILE_IMPORT = Object.freeze({
   maxFileBytes: 16 * 1024 * 1024,
 });
 
+export const DEFAULT_ANNOUNCEMENT_TEMPLATES = Object.freeze({
+  Welcome: 'Welcome survivors! Please review the server rules and contact staff if you need help.',
+  'Maintenance soon': 'Server maintenance will begin soon. Move to a safe location and prepare for a restart.',
+  'World save': 'A world save is being performed. Brief lag may occur.',
+  'Event starting': 'A server event is starting soon. Watch chat for details and follow staff instructions.',
+  'Rules reminder': 'Reminder: respect other players, avoid blocking access, and report disputes to staff.',
+});
+
 const DEFAULTS = Object.freeze({
   clusterName: 'ASA Cluster',
   servers: [],
@@ -53,7 +62,8 @@ const DEFAULTS = Object.freeze({
     messageBurst: 5, messageWindowSeconds: 10, defaultMuteMinutes: 15, maxMuteMinutes: 43_200,
     blockedTerms: [], blockedRegexes: [], adminPlayerIds: [], adminPlayerNames: [],
     allowRawRcon: false, rawRconAllowlist: ['ListPlayers', 'SaveWorld', 'GetChat'],
-    announcementTemplates: {},
+    announcementTemplates: DEFAULT_ANNOUNCEMENT_TEMPLATES,
+    announcementTemplatesInitialized: true,
   },
   operations: {
     joinLeaveAlerts: true, restartWarningMinutes: [15, 10, 5, 1], serverStatusAlerts: true,
@@ -184,7 +194,7 @@ export function validateConfig(config, { allowNoServers = false, allowManagedSec
       positiveInteger(profile.port, `${prefix}.profileImport.port`, 1, 65535);
       assert(typeof profile.username === 'string' && profile.username, `${prefix}.profileImport.username is required when enabled`);
       assert(typeof profile.password === 'string' && profile.password, `${prefix}.profileImport.password is required when enabled`);
-      assert(/^[a-f0-9]{64}$/i.test(profile.hostKeySha256 ?? ''), `${prefix}.profileImport.hostKeySha256 must be a 64-character SHA-256 hex fingerprint`);
+      assert(Boolean(normalizeSshSha256Fingerprint(profile.hostKeySha256)), `${prefix}.profileImport.hostKeySha256 must be a SHA-256 hex or OpenSSH fingerprint`);
       assert(/^[A-Za-z0-9_-]{1,64}$/.test(profile.mapName ?? ''), `${prefix}.profileImport.mapName is required when enabled`);
     }
   }
@@ -203,8 +213,16 @@ export function validateConfig(config, { allowNoServers = false, allowManagedSec
   positiveInteger(config.moderation.maxMuteMinutes, 'moderation.maxMuteMinutes', 1, 525_600);
   assert(config.moderation.defaultMuteMinutes <= config.moderation.maxMuteMinutes, 'defaultMuteMinutes cannot exceed maxMuteMinutes');
   assert(config.moderation.announcementTemplates && typeof config.moderation.announcementTemplates === 'object' && !Array.isArray(config.moderation.announcementTemplates), 'moderation.announcementTemplates must be an object');
+  assert(typeof config.moderation.announcementTemplatesInitialized === 'boolean', 'moderation.announcementTemplatesInitialized must be true or false');
+  assert(Object.keys(config.moderation.announcementTemplates).length <= 32, 'moderation.announcementTemplates cannot contain more than 32 templates');
   const announcementMaximum = announcementMessageMaxLength(config.chat.gameMaxLength);
+  const announcementNames = new Set();
   for (const [name, message] of Object.entries(config.moderation.announcementTemplates)) {
+    assert(/^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$/u.test(name), `moderation.announcementTemplates.${name} has an invalid name`);
+    const canonicalName = name.toLocaleLowerCase('en-US');
+    assert(!['__proto__', 'constructor', 'prototype'].includes(canonicalName), `moderation.announcementTemplates.${name} uses a reserved name`);
+    assert(!announcementNames.has(canonicalName), `moderation.announcementTemplates.${name} duplicates another name`);
+    announcementNames.add(canonicalName);
     assert(typeof message === 'string' && message.trim(), `moderation.announcementTemplates.${name} must be non-empty text`);
     assert(codePointLength(message.trim()) <= announcementMaximum,
       `moderation.announcementTemplates.${name} exceeds the ${announcementMaximum}-character announcement limit`);
@@ -311,6 +329,10 @@ export function validateConfig(config, { allowNoServers = false, allowManagedSec
 }
 
 export function applyDefaults(input = {}) {
+  const suppliedModeration = input.moderation ?? {};
+  const suppliedTemplates = suppliedModeration.announcementTemplates;
+  const initializeAnnouncementTemplates = suppliedModeration.announcementTemplatesInitialized !== true
+    && (!suppliedTemplates || Object.keys(suppliedTemplates).length === 0);
   const config = {
     ...DEFAULTS,
     ...input,
@@ -327,7 +349,11 @@ export function applyDefaults(input = {}) {
     discord: merge(DEFAULTS.discord, input.discord),
     analytics: merge(DEFAULTS.analytics, input.analytics),
     chat: merge(DEFAULTS.chat, input.chat),
-    moderation: merge(DEFAULTS.moderation, input.moderation),
+    moderation: {
+      ...merge(DEFAULTS.moderation, suppliedModeration),
+      announcementTemplates: { ...(initializeAnnouncementTemplates ? DEFAULT_ANNOUNCEMENT_TEMPLATES : suppliedTemplates ?? DEFAULT_ANNOUNCEMENT_TEMPLATES) },
+      announcementTemplatesInitialized: true,
+    },
     operations: merge(DEFAULTS.operations, input.operations),
     persistence: {
       ...merge(DEFAULTS.persistence, input.persistence),

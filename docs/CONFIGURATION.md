@@ -25,7 +25,7 @@ RCON is plaintext. Keep it on a private LAN, VPN, or encrypted tunnel. Public RC
 
 ## Player-profile access
 
-Per-map SFTP access is optional. Use a dedicated download-only account and verify the server's SHA-256 host-key fingerprint through a separate trusted channel. Enter the save directory or map token required by the ARK host.
+Per-map SFTP access is optional. Use a dedicated download-only account. The dashboard copies the map's RCON IP into the SFTP host field and recognizes common official ASA map names. Select **Scan host key** to fill the SHA-256 fingerprint without sending the SFTP password; compare the result with your hosting provider when possible. Both the usual `SHA256:...` OpenSSH form and 64-character hexadecimal form are accepted. Enter the save directory or map token required by the ARK host.
 
 Profile access allows BLCKSNAKE Command to verify connected-player targets for supported administrative actions. It does not need upload or delete permissions.
 
@@ -38,6 +38,14 @@ Enable Discord's Message Content Intent if Discord messages should relay into AR
 ## Operators
 
 Administrators can manage settings, operators, protected player information, and advanced commands. Moderators receive the smaller moderation and operations surface.
+
+Administrators can grant selected moderators additional access to **Save World**, **Give Items**, **Give XP**, **Refresh Player ID**, **Ban Player**, and join-allowlist management from the Operators page. Permission changes end that moderator's active dashboard sessions so the new access takes effect at the next sign-in. Settings, diagnostics, operator management, protected identifier disclosure, raw RCON, and destructive wild-dino wipes remain administrator-only. Administrators can also delete individual moderation notes from a protected player staff record; note deletion is confirmed and audited.
+
+Reusable messages are managed under **Settings → Broadcast templates**. New and upgraded installations receive starter templates for welcomes, maintenance, world saves, events, and rule reminders. Administrators may create, edit, delete, or restore templates; at most 32 are accepted, and each message follows the configured in-game announcement length. Save with **Apply & restart** before using a changed template.
+
+Player cards report **Discord link** and **Cluster Chat access** separately. A Discord account may be unlinked while Cluster Chat access is still allowed. New staff-record entries retain the responsible dashboard username (or Discord display attribution), a category, and a timestamp. Warnings, Cluster Chat mute/unmute actions, kicks, and bans are added to moderation history automatically; manual notes can be categorized as general, incident/tribe dispute, positive, or warning.
+
+The Activity page identifies the username and role that executed each dashboard command, along with the action, affected map or cluster, outcome, and sanitized command summary. Administrators and the server owner see activity from every operator. Moderators see only commands executed by their own account. The friendly Activity view covers the current service session; the encrypted audit logs remain the durable security record across restarts.
 
 New operators receive a temporary password that must be changed at first sign-in.
 
@@ -58,6 +66,8 @@ It does not send server names or addresses, credentials, player or Discord ident
 
 Delivery failures do not stop the application. The dashboard reports whether the initial contact was accepted. Disabling analytics stops future analytics requests immediately.
 
+The collector must accept non-browser `POST /collect` requests. If Cloudflare protects the collector, exclude this API route from interactive browser challenges while retaining authentication and rate limiting at the collector. A response containing `Cf-Mitigated: challenge` cannot be completed by the server process; the dashboard reports that condition explicitly and does not retry the rejected event.
+
 ## Advanced console
 
 The advanced RCON console is disabled until an Administrator enables it and defines allowed command verbs. Add only commands your staff needs. Arguments still pass application validation and every command requires review and confirmation.
@@ -66,7 +76,7 @@ The advanced RCON console is disabled until an Administrator enables it and defi
 
 Secret fields do not display stored values. Leave a secret field empty to keep its current value. Disable an integration before using its delete control.
 
-Saved settings become active after the container restarts:
+For ordinary changes, select **Apply & restart** in the review dialog. You can also use **Restart now** in the pending-settings banner. With the supplied Compose configuration, Docker brings the service back automatically. If the dashboard cannot request a restart, use:
 
 ```bash
 docker compose restart app

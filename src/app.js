@@ -52,6 +52,8 @@ export function createApplication(config, dependencies = {}) {
     config: { ...config.http, managedInstance: config.managedInstance, redactionSecrets: configuredSecrets }, bridge, state, metrics, logger,
     settingsService: dependencies.settingsService ?? null,
     onOwnerSetupCompleted: dependencies.onOwnerSetupCompleted ?? null,
+    onRestartRequested: dependencies.onRestartRequested ?? null,
+    ...(dependencies.sftpHostKeyScanner ? { sftpHostKeyScanner: dependencies.sftpHostKeyScanner } : {}),
   });
   const managedRecoveryMode = Boolean(config.managedInstance?.enabled);
   const instanceLockFile = dependencies.instanceLockFile ?? '';
@@ -185,7 +187,7 @@ export function createApplication(config, dependencies = {}) {
 
 export async function main() {
   const runtime = await openRuntimeContext();
-  let app = null;
+  let app = null; let requestRestart = null;
   try {
     const { config } = runtime;
     const settingsService = runtime.managed
@@ -196,6 +198,7 @@ export async function main() {
       ...(runtime.runtimeLock ? { runtimeLock: runtime.runtimeLock } : {}),
       settingsService,
       onOwnerSetupCompleted: runtime.ownerSetupCompleted?.bind(runtime) ?? null,
+      onRestartRequested: () => requestRestart?.(),
     });
     settingsService?.setAnalyticsConsentHandler((enabled) => app.analytics.setConsent(enabled, {
       serverCount: app.servers.length, discordEnabled: config.discord.enabled,
@@ -208,6 +211,7 @@ export async function main() {
       try { await app.stop(); process.exitCode = 0; }
       catch { process.exitCode = 1; }
     };
+    requestRestart = () => shutdown('dashboard_restart');
     process.once('SIGINT', () => { void shutdown('SIGINT'); });
     process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
     process.on('uncaughtException', (error) => { app.logger.error('Uncaught exception', { error: error.message, stack: error.stack }); void shutdown('uncaughtException'); });

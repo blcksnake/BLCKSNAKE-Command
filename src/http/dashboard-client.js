@@ -6,6 +6,13 @@
   var MAX_BACKOFF_MS = 60_000;
   var PLAYER_REFRESH_MS = 10_000;
   var ACTIVITY_REFRESH_MS = 15_000;
+  var STARTER_ANNOUNCEMENT_TEMPLATES = {
+    'Welcome': 'Welcome survivors! Please review the server rules and contact staff if you need help.',
+    'Maintenance soon': 'Server maintenance will begin soon. Move to a safe location and prepare for a restart.',
+    'World save': 'A world save is being performed. Brief lag may occur.',
+    'Event starting': 'A server event is starting soon. Watch chat for details and follow staff instructions.',
+    'Rules reminder': 'Reminder: respect other players, avoid blocking access, and report disputes to staff.'
+  };
 
   var pageMeta = {
     overview: ['Overview', 'Maps, players, and active issues'],
@@ -32,8 +39,11 @@
     actionPlayers: [],
     visiblePlayers: [],
     activity: [],
+    activityScope: 'own',
     diagnostics: [],
     operators: [],
+    operatorGrantableActions: [],
+    permissionOperator: null,
     settingsProjection: null,
     settingsBaseline: '',
     settingsController: null,
@@ -322,7 +332,8 @@
       failure.mutationCommitted = response.headers.get('x-mutation-committed') === 'true'
         || ['owner_setup_committed_audit_failed', 'operator_create_committed_audit_failed',
           'operator_update_committed_audit_failed', 'operator_password_reset_committed_audit_failed',
-          'password_change_committed_audit_failed', 'automation_token_ack_committed_audit_failed'].includes(errorCode);
+          'password_change_committed_audit_failed', 'automation_token_ack_committed_audit_failed',
+          'staff_note_delete_committed_audit_failed'].includes(errorCode);
       failure.temporaryCredentialDeliveryFailed = response.headers.get('x-temporary-credential-delivery-failed') === 'true'
         || ['operator_create_committed_audit_failed', 'operator_password_reset_committed_audit_failed'].includes(errorCode);
       if (response.status === 401 && !settings.ignoreUnauthorized
@@ -436,8 +447,11 @@
     state.actionPlayers = [];
     state.visiblePlayers = [];
     state.activity = [];
+    state.activityScope = 'own';
     state.diagnostics = [];
     state.operators = [];
+    state.operatorGrantableActions = [];
+    state.permissionOperator = null;
     state.selectedPlayer = null;
     state.currentAction = null;
     state.actionDefaults = {};
@@ -464,7 +478,7 @@
     if (itemKey) itemKey.value = '';
     var diagnosticSearch = $('#diagnostic-search');
     if (diagnosticSearch) diagnosticSearch.value = '';
-    ['#action-form', '#confirm-form', '#console-form', '#login-form', '#setup-form', '#change-password-form', '#create-operator-form'].forEach(function (selector) {
+    ['#action-form', '#confirm-form', '#console-form', '#login-form', '#setup-form', '#change-password-form', '#create-operator-form', '#operator-permissions-form'].forEach(function (selector) {
       var form = $(selector);
       if (form) form.reset();
     });
@@ -1250,12 +1264,10 @@
     });
   }
 
-  function relayLabel(player) {
+  function relayAccessLabel(player) {
     var muted = timestamp(player.mutedUntil);
-    if (muted !== null && muted > Date.now()) return { text: 'Muted ' + formatAge(muted), tone: 'bad' };
-    if (player.linked === true) return { text: 'Linked', tone: 'good' };
-    if (player.linked === false) return { text: 'Not linked', tone: '' };
-    return { text: 'Available', tone: '' };
+    if (muted !== null && muted > Date.now()) return { text: 'Muted until ' + formatDate(muted), tone: 'bad' };
+    return { text: 'Allowed', tone: 'good' };
   }
 
   function renderPlayers() {
@@ -1277,7 +1289,7 @@
       var targetingCell = document.createElement('td');
       targetingCell.dataset.label = 'Targeting';
       targetingCell.append(element('span', 'target-badge ' + targeting.tone, targeting.text));
-      var relay = relayLabel(player);
+      var relay = relayAccessLabel(player);
       var relayCell = document.createElement('td');
       relayCell.dataset.label = 'Relay';
       relayCell.append(element('span', 'target-badge ' + relay.tone, relay.text));
@@ -1372,12 +1384,12 @@
     $('#player-dialog').querySelector('.dialog-header p:last-child').textContent =
       safeString((player.name && player.survivorName && player.name !== player.survivorName ? player.name + ' - ' : '') + (player.serverName || player.serverId || 'Current map'), 180);
     var target = targetState(player.targeting);
-    var relay = relayLabel(player);
+    var relay = relayAccessLabel(player);
     var details = [
       ['Map', player.serverName || player.serverId || '--'],
       ['Targeting', target.text],
       ['Discord link', player.linked === true ? 'Linked' : player.linked === false ? 'Not linked' : '--'],
-      ['Relay state', relay.text],
+      ['Cluster Chat access', relay.text],
       ['Playtime', player.playtimeSeconds === undefined || player.playtimeSeconds === null ? '--' : formatDuration(player.playtimeSeconds)],
       ['Staff notes', plural(numeric(player.notesCount), 'note')]
     ].map(function (entry) {
@@ -1458,7 +1470,7 @@
     var statusCards = [
       staffStatusCard('TG', 'Admin targeting', targeting.text, targeting.tone),
       staffStatusCard('DC', 'Discord link', linked ? (discordDisplayName ? 'Linked as ' + discordDisplayName : 'Linked') : 'Not linked', linked ? 'good' : ''),
-      staffStatusCard('RL', 'Relay access', muted ? 'Muted until ' + formatDate(muteUntil) : 'Available', muted ? 'warn' : 'good'),
+      staffStatusCard('RL', 'Cluster Chat access', muted ? 'Muted until ' + formatDate(muteUntil) : 'Allowed', muted ? 'warn' : 'good'),
       staffStatusCard('PT', 'Total playtime', playtime, '')
     ];
     $('#staff-record-status').replaceChildren.apply($('#staff-record-status'), statusCards);
@@ -1466,13 +1478,26 @@
     var noteNodes = notes.map(function (note) {
       var entry = note && typeof note === 'object' ? note : {};
       var item = element('article', 'staff-note-item');
+      var noteType = safeString(entry.type || 'note', 24).toLowerCase();
+      var typeLabels = { note: 'Note', warning: 'Warning', incident: 'Incident', positive: 'Positive', mute: 'Relay mute', unmute: 'Relay unmute', kick: 'Kick', ban: 'Ban' };
+      item.append(element('span', 'staff-note-type staff-note-type-' + noteType, typeLabels[noteType] || 'Note'));
       item.append(element('p', 'staff-note-copy', safeString(entry.text || 'Note details unavailable.', 1_000)));
       var meta = element('div', 'staff-note-meta');
+      var rawActor = safeString(entry.actor || '', 64);
+      var actorLabel = rawActor === 'http:dashboard'
+        ? 'Dashboard operator (legacy entry)' : rawActor.startsWith('discord:')
+          ? 'Discord · ' + rawActor.slice(8) : rawActor || 'Staff member';
       meta.append(
-        element('span', '', safeString(entry.actor || 'Staff', 64)),
+        element('span', '', actorLabel),
         element('time', '', timestamp(entry.at) === null ? 'Time unavailable' : formatDate(entry.at))
       );
       if (timestamp(entry.at) !== null) $('time', meta).dateTime = new Date(timestamp(entry.at)).toISOString();
+      if (isAdministrator() && /^mn_[A-Za-z0-9_-]{22}$/u.test(entry.id || '')) {
+        var remove = element('button', 'danger-quiet-button staff-note-delete', 'Delete');
+        remove.type = 'button';
+        remove.addEventListener('click', function () { deleteStaffNote(entry, remove); });
+        meta.append(remove);
+      }
       item.append(meta);
       return item;
     });
@@ -1490,6 +1515,23 @@
     $('.staff-record-columns', $('#result-dialog')).classList.toggle('moderator-view', !admin);
     setHidden($('#staff-record-loading'), true);
     setHidden($('#result-details'), false);
+  }
+
+  async function deleteStaffNote(note, button) {
+    var player = state.selectedPlayer;
+    if (!player || !window.confirm('Delete this moderation note? This cannot be undone.')) return;
+    setBusy(button, true, 'Deleting...');
+    try {
+      var result = await api('/admin/api/players/notes', {
+        method: 'DELETE', csrf: true, body: { player: player.selection, note: note.id }
+      });
+      if (!result || result.ok !== true) throw incompleteMutationResponse('The note-deletion response was incomplete.');
+      toast('Moderation note deleted.', 'good');
+      await showStaffRecord(player, null);
+    } catch (error) {
+      toast(errorMessage(error), mutationOutcomeUnknown(error) ? 'warn' : 'bad', 10_000);
+      setBusy(button, false);
+    }
   }
 
   async function showStaffRecord(player, trigger) {
@@ -1676,6 +1718,10 @@
       var result = await api('/admin/api/activity', { signal: controller.signal });
       if (state.activityController !== controller) return;
       state.activity = Array.isArray(result.activity) ? result.activity : [];
+      state.activityScope = result.scope === 'all_operators' ? 'all_operators' : 'own';
+      if ($('#activity-scope')) $('#activity-scope').textContent = state.activityScope === 'all_operators'
+        ? 'All dashboard commands executed by every administrator and moderator in this service session.'
+        : 'Only commands executed by your moderator account in this service session.';
       state.lastActivityRefreshAt = Date.now();
       renderActivity();
     } catch (error) {
@@ -1700,15 +1746,19 @@
 
   function normalizedActivity(entry) {
     var source = entry && typeof entry === 'object' ? entry : {};
-    var action = safeString(source.action || source.type || source.command || 'operation', 80);
+    var action = safeString(source.actionLabel || source.action || source.type || source.command || 'Operation', 80);
     var server = safeString(source.serverName || source.server || source.serverId || 'Cluster', 100);
     var target = safeString(source.targetName || source.target || source.subject || '', 120);
     var actor = safeString(source.actorName || source.actor || source.operator || 'Operator', 100);
-    var detail = safeString(source.message || source.summary || source.detail || '', 220);
+    var actorRole = safeString(source.actorRole || source.role || '', 24).toLowerCase();
+    var summary = safeString(source.summary || source.detail || '', 220);
+    var outcomeMessage = safeString(source.message || '', 220);
+    var detail = summary && outcomeMessage && summary !== outcomeMessage
+      ? summary + ' — ' + outcomeMessage : summary || outcomeMessage;
     var operationId = safeString(source.operationId || source.id || '', 100);
     var at = source.at || source.timestamp || source.occurredAt || source.createdAt || source.completedAt;
     var duration = source.durationMs === undefined || source.durationMs === null ? '' : Math.max(0, Math.round(numeric(source.durationMs))) + ' ms';
-    return { action: action, server: server, target: target, actor: actor, detail: detail, operationId: operationId, at: at, duration: duration, status: activityStatus(source) };
+    return { action: action, server: server, target: target, actor: actor, actorRole: actorRole, detail: detail, operationId: operationId, at: at, duration: duration, status: activityStatus(source) };
   }
 
   function activityNode(entry) {
@@ -1717,7 +1767,8 @@
     var time = element('div', 'activity-time');
     time.append(element('strong', '', formatDate(value.at)), element('span', '', value.duration || formatAge(value.at)));
     var actor = element('div', 'activity-actor');
-    actor.append(element('strong', '', value.actor), element('span', '', value.server));
+    var roleLabel = value.actorRole === 'admin' ? 'Administrator' : value.actorRole === 'moderator' ? 'Moderator' : 'Staff';
+    actor.append(element('strong', '', value.actor), element('span', '', roleLabel + ' · ' + value.server));
     var detail = element('div', 'activity-detail');
     detail.append(element('strong', '', value.action + (value.target ? ' - ' + value.target : '')),
       element('span', '', value.detail || (value.operationId ? 'Operation ' + value.operationId : 'Sanitized outcome')));
@@ -1740,7 +1791,8 @@
     var list = $('#activity-list');
     var entries = filteredActivity();
     var nodes = entries.map(activityNode);
-    list.replaceChildren.apply(list, nodes.length ? nodes : [element('div', 'empty-copy', 'No matching administrator activity.')]);
+    list.replaceChildren.apply(list, nodes.length ? nodes : [element('div', 'empty-copy', state.activityScope === 'all_operators'
+      ? 'No matching operator activity.' : 'You have no matching activity.')]);
     $('#activity-summary').textContent = plural(entries.length, 'event') + (entries.length !== state.activity.length ? ' shown' : '');
     var serverActivity = state.activity.filter(function (entry) {
       return normalizedActivity(entry).action.toLowerCase().includes('rcon');
@@ -1824,6 +1876,9 @@
       enabled: source.enabled !== false,
       owner: Boolean(source.owner),
       mustChangePassword: Boolean(source.mustChangePassword),
+      actionGrants: Array.isArray(source.actionGrants) ? source.actionGrants.map(function (grant) {
+        return safeString(grant, 64);
+      }).filter(Boolean) : [],
       revision: Math.max(0, Math.floor(numeric(source.recordRevision !== undefined ? source.recordRevision : source.revision, 0))),
       updatedAt: source.updatedAt || source.createdAt || null,
       current: Boolean(source.current || source.isCurrent || source.isSelf) || username.toLowerCase() === safeString(state.session && state.session.username, 32).toLowerCase()
@@ -1873,6 +1928,9 @@
     var roleControls = element('div', 'operator-role-controls');
     roleControls.append(roleSelect, saveRole);
     roleCell.append(roleControls);
+    if (operator.role === 'moderator' && operator.actionGrants.length) {
+      roleCell.append(element('span', 'operator-self', plural(operator.actionGrants.length, 'additional permission')));
+    }
 
     var status = document.createElement('td');
     status.dataset.label = 'Status';
@@ -1900,7 +1958,12 @@
     });
     reset.disabled = operator.current || operator.owner || !operator.enabled;
     reset.hidden = operator.owner;
-    actions.append(toggle, reset);
+    var permissions = operatorActionButton('Permissions', 'quiet-button', function () {
+      openOperatorPermissions(operator, permissions);
+    });
+    permissions.hidden = operator.role !== 'moderator';
+    permissions.disabled = !operator.enabled;
+    actions.append(permissions, toggle, reset);
     row.append(identity, roleCell, status, updated, actions);
     return row;
   }
@@ -1911,6 +1974,40 @@
     setHidden($('#operator-empty'), rows.length > 0);
     $('#nav-operator-count').textContent = String(rows.length);
     $('#operator-status').textContent = plural(rows.length, 'operator') + ' loaded.';
+  }
+
+  function openOperatorPermissions(operator, trigger) {
+    if (!operator || operator.role !== 'moderator') return;
+    state.permissionOperator = operator;
+    state.lastDialogTrigger = trigger;
+    $('#operator-permissions-title').textContent = 'Permissions for ' + operator.username;
+    $('#operator-permissions-copy').textContent = 'Choose additional administrator operations for this moderator. Their active sessions will end after saving.';
+    showFormError($('#operator-permissions-error'), '');
+    var selected = new Set(operator.actionGrants);
+    var options = state.operatorGrantableActions.map(function (action) {
+      var label = element('label', 'operator-permission-option');
+      var input = document.createElement('input');
+      input.type = 'checkbox'; input.name = 'action-grant'; input.value = action.id;
+      input.checked = selected.has(action.id);
+      label.append(input, element('strong', '', action.label), element('span', '', action.description));
+      return label;
+    });
+    $('#operator-permission-options').replaceChildren.apply($('#operator-permission-options'), options);
+    $('#operator-permissions-dialog').showModal();
+    var first = $('input', $('#operator-permission-options'));
+    if (first) first.focus();
+  }
+
+  async function handleOperatorPermissions(event) {
+    event.preventDefault();
+    var operator = state.permissionOperator; var button = $('#save-operator-permissions');
+    if (!operator) return;
+    var grants = $all('input[name="action-grant"]:checked', event.currentTarget).map(function (input) { return input.value; });
+    var saved = await updateOperator(operator, { actionGrants: grants }, button, $('#operator-permissions-error'));
+    if (saved) {
+      state.permissionOperator = null;
+      $('#operator-permissions-dialog').close();
+    }
   }
 
   async function loadOperators(options) {
@@ -1924,6 +2021,7 @@
       var result = await api('/admin/api/operators', { signal: controller.signal });
       if (state.operatorController !== controller) return;
       state.operators = Array.isArray(result.operators) ? result.operators : [];
+      state.operatorGrantableActions = Array.isArray(result.grantableActions) ? result.grantableActions : [];
       renderOperators();
     } catch (error) {
       if (error && error.name === 'AbortError') return;
@@ -1934,7 +2032,7 @@
     }
   }
 
-  async function updateOperator(operator, changes, button) {
+  async function updateOperator(operator, changes, button, errorNode) {
     if (!operator.id) return toast('This operator record cannot be updated.', 'bad');
     setBusy(button, true, 'Saving...');
     try {
@@ -1946,6 +2044,7 @@
       }
       toast('Operator access updated.', 'good');
       await loadOperators({ quiet: true });
+      return true;
     } catch (error) {
       var committed = Boolean(error && error.mutationCommitted);
       toast(committed
@@ -1953,7 +2052,9 @@
         : mutationOutcomeUnknown(error)
           ? 'The operator change response was lost or incomplete. The operator list was refreshed; verify it before another change.'
           : errorMessage(error), committed || mutationOutcomeUnknown(error) ? 'warn' : 'bad', 12_000);
+      if (errorNode) showFormError(errorNode, errorMessage(error));
       await loadOperators({ quiet: true });
+      return false;
     } finally {
       setBusy(button, false);
     }
@@ -2050,6 +2151,17 @@
     return value.slice(0, maximum || 64).map(function (entry) {
       return safeString(entry, 256).trim();
     }).filter(Boolean);
+  }
+
+  function settingsAnnouncementTemplates(value) {
+    if (!jsonRecord(value)) return {};
+    var result = {};
+    Object.keys(value).slice(0, 32).forEach(function (name) {
+      var cleanName = safeString(name, 40).trim();
+      var message = safeString(value[name], 2_000).trim();
+      if (cleanName && message) result[cleanName] = message;
+    });
+    return result;
   }
 
   function jsonRecord(value) {
@@ -2171,7 +2283,8 @@
         analytics: { enabled: analyticsSource.enabled === true },
         moderation: {
           allowRawRcon: Boolean(moderationSource.allowRawRcon),
-          rawRconAllowlist: settingsList(moderationSource.rawRconAllowlist, 64)
+          rawRconAllowlist: settingsList(moderationSource.rawRconAllowlist, 64),
+          announcementTemplates: settingsAnnouncementTemplates(moderationSource.announcementTemplates)
         }
       }
     };
@@ -2362,6 +2475,46 @@
     return { section: section, heading: heading };
   }
 
+  function suggestedAsaMapName(server) {
+    var candidates = [server && server.name, server && server.id].map(function (value) {
+      return safeString(value, 96).trim();
+    }).filter(Boolean);
+    var exact = candidates.find(function (value) { return /^[A-Za-z0-9_-]+_WP$/u.test(value); });
+    if (exact) return exact;
+    var known = {
+      theisland: 'TheIsland_WP', scorchedearth: 'ScorchedEarth_WP', thecenter: 'TheCenter_WP',
+      aberration: 'Aberration_WP', extinction: 'Extinction_WP', ragnarok: 'Ragnarok_WP',
+      valguero: 'Valguero_WP'
+    };
+    for (var candidate of candidates) {
+      var match = known[candidate.toLowerCase().replace(/[^a-z0-9]/gu, '')];
+      if (match) return match;
+    }
+    return '';
+  }
+
+  async function scanProfileHostKey(card, button) {
+    var host = settingControl(card, 'profile.host').value.trim();
+    var port = settingNumber(card, 'profile.port');
+    if (!host || !port) return toast('Enter the SFTP host and port first.', 'warn');
+    setBusy(button, true, 'Scanning...');
+    try {
+      var result = await api('/admin/api/settings/sftp-host-key', {
+        method: 'POST', csrf: true, body: { host: host, port: port }
+      });
+      if (!result || !/^[a-f0-9]{64}$/iu.test(result.fingerprint || '')) {
+        throw new ApiError('The SFTP server returned an invalid host key.', 502, 'INVALID_HOST_KEY_RESPONSE');
+      }
+      settingControl(card, 'profile.hostKeySha256').value = result.openssh || result.fingerprint;
+      updateSettingsDirtyState();
+      toast('Host key scanned. Compare it with your host provider if possible, then apply the settings.', 'good', 10_000);
+    } catch (error) {
+      toast(errorMessage(error), 'bad', 10_000);
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
   function updateProfileFieldState(card) {
     var toggle = $('[data-setting-field="profile.enabled"]', card);
     var fields = $('.settings-profile-fields', card);
@@ -2476,12 +2629,30 @@
     clearProfileInput.disabled = !profile.passwordConfigured;
     sftp.heading.append(profileSwitch, clearProfilePassword);
     var profileFields = element('div', 'settings-field-grid settings-profile-fields');
-    var profileHost = settingInput('SFTP host', 'profile.host', profile.host || server.host, { required: true, maximum: 255 });
+    var inheritedProfileHost = !profile.passwordConfigured && profile.host === '127.0.0.1'
+      && server.host !== '127.0.0.1' ? server.host : (profile.host || server.host);
+    var profileHost = settingInput('SFTP host', 'profile.host', inheritedProfileHost, {
+      required: true, maximum: 255, help: 'Defaults to the RCON host until you enter a different address.'
+    });
     var profilePort = settingInput('SFTP port', 'profile.port', profile.port, { type: 'number', required: true, minimum: 1, maximumNumber: 65_535, step: 1 });
     var profileUser = settingInput('Read-only username', 'profile.username', profile.username, { required: true, maximum: 128 });
     $('[data-setting-field]', profileHost).dataset.profileRequired = 'true';
     $('[data-setting-field]', profilePort).dataset.profileRequired = 'true';
     $('[data-setting-field]', profileUser).dataset.profileRequired = 'true';
+    var fingerprintField = settingInput('Host-key SHA-256', 'profile.hostKeySha256', profile.hostKeySha256, {
+      full: true, required: true, maximum: 64,
+      pattern: '(?:[A-Fa-f0-9]{64}|SHA256:[A-Za-z0-9+/]{43}={0,1})',
+      placeholder: 'SHA256:... or 64 hexadecimal characters',
+      help: 'Pinning protects the SFTP password if another machine impersonates this server. You can scan the key, then compare it with your host provider if possible.'
+    });
+    var scanFingerprint = element('button', 'quiet-button settings-sftp-scan', 'Scan host key');
+    scanFingerprint.type = 'button';
+    scanFingerprint.addEventListener('click', function () { void scanProfileHostKey(card, scanFingerprint); });
+    fingerprintField.append(scanFingerprint);
+    var profileMap = settingInput('ASA map name', 'profile.mapName', profile.mapName || suggestedAsaMapName(server), {
+      required: true, maximum: 64, pattern: '[A-Za-z0-9_-]{1,64}',
+      help: 'Filled automatically for recognized official map names; edit it if your save-directory token differs.'
+    });
     profileFields.append(
       profileHost,
       profilePort,
@@ -2490,11 +2661,9 @@
         secret: true, required: profile.enabled && !profile.passwordConfigured, configured: profile.passwordConfigured,
         minimumLength: 16, maximum: 512, placeholder: profile.passwordConfigured ? 'Configured - enter a replacement' : 'Enter at least 16 characters'
       }),
-      settingInput('Host-key SHA-256', 'profile.hostKeySha256', profile.hostKeySha256, {
-        full: true, required: true, maximum: 64, pattern: '[A-Fa-f0-9]{64}', help: 'Pinned fingerprint. Connections are rejected if this fingerprint changes.'
-      }),
-      settingInput('ASA map name', 'profile.mapName', profile.mapName, { required: true, maximum: 64, pattern: '[A-Za-z0-9_-]{1,64}' }),
-      settingTextarea('Profile directories', 'profile.directories', profile.directories, 'One canonical absolute server path per line.'),
+      fingerprintField,
+      profileMap,
+      settingTextarea('Profile directories', 'profile.directories', profile.directories, 'Optional. Leave blank to try the built-in ASA save paths, or enter one canonical absolute server path per line.'),
       settingInput('Connect timeout (ms)', 'profile.connectTimeoutMs', profile.connectTimeoutMs, { type: 'number', required: true, minimum: 100, maximumNumber: 120_000, step: 1 }),
       settingInput('Operation timeout (ms)', 'profile.operationTimeoutMs', profile.operationTimeoutMs, { type: 'number', required: true, minimum: 100, maximumNumber: 300_000, step: 1 }),
       settingInput('Retry interval (ms)', 'profile.retryIntervalMs', profile.retryIntervalMs, { type: 'number', required: true, minimum: 1_000, maximumNumber: 86_400_000, step: 1 }),
@@ -2504,6 +2673,28 @@
     sftp.section.append(profileFields);
     body.append(rcon.section, sftp.section);
     card.append(heading, body);
+    var rconHostInput = settingControl(card, 'host');
+    var profileHostInput = settingControl(card, 'profile.host');
+    var profileMapInput = settingControl(card, 'profile.mapName');
+    var previousRconHost = rconHostInput.value.trim();
+    var previousSuggestion = suggestedAsaMapName(server);
+    rconHostInput.addEventListener('input', function () {
+      if (!profileHostInput.value.trim() || profileHostInput.value.trim() === previousRconHost) {
+        profileHostInput.value = rconHostInput.value.trim();
+      }
+      previousRconHost = rconHostInput.value.trim();
+    });
+    for (var sourceField of [settingControl(card, 'id'), settingControl(card, 'name')]) {
+      sourceField.addEventListener('input', function () {
+        var nextSuggestion = suggestedAsaMapName({
+          id: settingControl(card, 'id').value, name: settingControl(card, 'name').value
+        });
+        if (nextSuggestion && (!profileMapInput.value.trim() || profileMapInput.value.trim() === previousSuggestion)) {
+          profileMapInput.value = nextSuggestion;
+        }
+        previousSuggestion = nextSuggestion;
+      });
+    }
     updateServerCardPresentation(card);
     return card;
   }
@@ -2535,6 +2726,84 @@
     var staged = settingsSecurityStaged('#settings-regenerate-tls');
     names.disabled = !staged;
     names.setCustomValidity('');
+  }
+
+  function announcementTemplateMaximum() {
+    return boundedInteger(state.capabilities && state.capabilities.announcementMaxLength, 400, 1, 2_000);
+  }
+
+  function buildSettingsTemplateRow(name, message) {
+    var row = element('div', 'settings-template-row');
+    row.dataset.settingsTemplate = 'true';
+    var nameLabel = element('label', 'settings-field');
+    nameLabel.append(element('span', '', 'Template name'));
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text'; nameInput.required = true; nameInput.maxLength = 40;
+    nameInput.pattern = '[A-Za-z0-9][A-Za-z0-9 _-]{0,39}';
+    nameInput.autocomplete = 'off'; nameInput.dataset.templateField = 'name'; nameInput.value = name || '';
+    nameLabel.append(nameInput, element('small', '', 'Letters, numbers, spaces, underscores, or hyphens.'));
+    var messageLabel = element('label', 'settings-field');
+    messageLabel.append(element('span', '', 'Broadcast message'));
+    var messageInput = document.createElement('textarea');
+    messageInput.required = true; messageInput.rows = 2; messageInput.dataset.templateField = 'message';
+    messageInput.value = message || '';
+    configureCodePointMaximum(messageInput, announcementTemplateMaximum());
+    messageLabel.append(messageInput, element('small', '', 'Sent exactly as written after staff review and confirmation.'));
+    var remove = element('button', 'danger-quiet-button settings-template-remove', 'Delete');
+    remove.type = 'button';
+    remove.addEventListener('click', function () {
+      row.remove(); renderSettingsTemplateEmpty(); updateSettingsDirtyState();
+    });
+    row.append(nameLabel, messageLabel, remove);
+    return row;
+  }
+
+  function renderSettingsTemplateEmpty() {
+    var list = $('#settings-template-list');
+    var empty = $('.settings-template-empty', list);
+    var hasRows = Boolean($('[data-settings-template]', list));
+    if (hasRows && empty) empty.remove();
+    else if (!hasRows && !empty) list.append(element('div', 'settings-template-empty empty-copy', 'No templates configured. Add one or restore the starter set.'));
+  }
+
+  function renderSettingsTemplates(templateMap) {
+    var rows = Object.keys(templateMap || {}).map(function (name) {
+      return buildSettingsTemplateRow(name, templateMap[name]);
+    });
+    $('#settings-template-list').replaceChildren.apply($('#settings-template-list'), rows);
+    renderSettingsTemplateEmpty();
+  }
+
+  function addSettingsTemplate(name, message) {
+    var list = $('#settings-template-list');
+    if ($all('[data-settings-template]', list).length >= 32) {
+      toast('Broadcast templates are limited to 32 entries.', 'warn'); return null;
+    }
+    var empty = $('.settings-template-empty', list); if (empty) empty.remove();
+    var row = buildSettingsTemplateRow(name || '', message || ''); list.append(row);
+    updateSettingsDirtyState();
+    return row;
+  }
+
+  function addStarterAnnouncementTemplates() {
+    var existing = new Set($all('[data-template-field="name"]', $('#settings-template-list')).map(function (input) {
+      return input.value.trim().toLowerCase();
+    }));
+    var added = 0;
+    Object.keys(STARTER_ANNOUNCEMENT_TEMPLATES).forEach(function (name) {
+      if (!existing.has(name.toLowerCase()) && addSettingsTemplate(name, STARTER_ANNOUNCEMENT_TEMPLATES[name])) added += 1;
+    });
+    toast(added ? plural(added, 'starter template') + ' added. Review and apply to save.' : 'All starter templates are already present.', added ? 'good' : 'warn');
+  }
+
+  function readSettingsTemplates() {
+    var output = {};
+    $all('[data-settings-template]', $('#settings-template-list')).forEach(function (row) {
+      var name = $('[data-template-field="name"]', row).value.trim();
+      var message = $('[data-template-field="message"]', row).value.trim();
+      if (name) output[name] = message;
+    });
+    return output;
   }
 
   function renderSettingsProjection(projection) {
@@ -2577,6 +2846,7 @@
     $('#settings-analytics-enabled').checked = current.settings.analytics.enabled;
     applyDiscordFieldState();
     var moderation = current.settings.moderation;
+    renderSettingsTemplates(moderation.announcementTemplates);
     $('#settings-raw-rcon-enabled').checked = moderation.allowRawRcon;
     $('#settings-rcon-allowlist').value = moderation.rawRconAllowlist.join('\n');
     $('#settings-rotate-token').setAttribute('aria-pressed', 'false');
@@ -2631,7 +2901,8 @@
           + (tls.trustUpdateRequired ? ' Trust the replacement HTTPS CA on every administrator device before that restart.' : '')
         : tls.trustUpdateRequired
           ? 'A replacement HTTPS CA is staged. Before restarting, download the current or staged CA below, install it on every administrator device, and retain the old CA until the new listener is verified.'
-          : 'Restart the application service to activate the saved configuration. It will not restart automatically.';
+          : 'Select Restart now to activate the saved configuration. With Docker Compose, the container returns automatically.';
+    $('#settings-restart-now').disabled = instance.automationToken.deliveryPending;
     setHidden($('#settings-restart-banner'), !(restartRequired(current.restartRequired)
       || instance.automationToken.deliveryPending || instance.automationToken.activationPending));
     if (recoveryDisposition === 'confirmed') {
@@ -2730,7 +3001,8 @@
       analytics: { enabled: $('#settings-analytics-enabled').checked },
       moderation: {
         allowRawRcon: $('#settings-raw-rcon-enabled').checked,
-        rawRconAllowlist: splitSettingsLines($('#settings-rcon-allowlist').value)
+        rawRconAllowlist: splitSettingsLines($('#settings-rcon-allowlist').value),
+        announcementTemplates: readSettingsTemplates()
       }
     };
   }
@@ -2783,7 +3055,13 @@
     if (baseline.analytics.enabled !== current.analytics.enabled) {
       changes.push('Analytics: ' + (current.analytics.enabled ? 'Enable optional product analytics' : 'Disable product analytics'));
     }
-    if (JSON.stringify(baseline.moderation) !== JSON.stringify(current.moderation)) changes.push('Security: Update advanced console policy');
+    if (JSON.stringify(baseline.moderation.announcementTemplates) !== JSON.stringify(current.moderation.announcementTemplates)) {
+      changes.push('Broadcast templates: Update reusable announcements');
+    }
+    if (baseline.moderation.allowRawRcon !== current.moderation.allowRawRcon
+      || JSON.stringify(baseline.moderation.rawRconAllowlist) !== JSON.stringify(current.moderation.rawRconAllowlist)) {
+      changes.push('Security: Update advanced console policy');
+    }
     if (settingsSecurityStaged('#settings-rotate-token')) changes.push('Security: Rotate automation token');
     if (settingsSecurityStaged('#settings-regenerate-tls')) {
       changes.push('Security: Regenerate HTTPS identity for '
@@ -2893,6 +3171,25 @@
         return false;
       }
     }
+    var templateNames = new Set();
+    var templateRows = $all('[data-settings-template]', $('#settings-template-list'));
+    if (templateRows.length > 32) {
+      showFormError($('#settings-error'), 'Broadcast templates are limited to 32 entries.'); return false;
+    }
+    for (var templateRow of templateRows) {
+      var templateNameInput = $('[data-template-field="name"]', templateRow);
+      var templateMessageInput = $('[data-template-field="message"]', templateRow);
+      templateNameInput.setCustomValidity(''); templateMessageInput.setCustomValidity('');
+      var templateName = templateNameInput.value.trim().toLowerCase();
+      if (templateNames.has(templateName)) {
+        templateNameInput.setCustomValidity('Template names must be unique.');
+        templateNameInput.reportValidity(); return false;
+      }
+      templateNames.add(templateName);
+      if (!validateCodePointMaximum(templateMessageInput)) {
+        templateMessageInput.reportValidity(); return false;
+      }
+    }
     for (var roleSelector of ['#settings-discord-admin-roles', '#settings-discord-moderator-roles', '#settings-discord-relay-roles']) {
       var roleInput = $(roleSelector);
       roleInput.setCustomValidity('');
@@ -2959,8 +3256,63 @@
       ? 'Saving stages a new HTTPS CA. After Apply and before restart, download and install the staged CA on every administrator device. Keep the old CA until the restarted listener is verified.'
       : 'Restart the service to activate these changes.';
     showFormError($('#settings-review-error'), '');
+    showFormError($('#settings-reauthentication-error'), '');
+    updateSettingsReauthenticationState();
     $('#settings-review-dialog').showModal();
-    window.setTimeout(function () { $('#settings-apply').focus(); }, 0);
+    window.setTimeout(function () {
+      if (!$('#settings-reauthentication-form').hidden) $('#settings-current-password').focus();
+      else ($('#settings-apply-restart').disabled ? $('#settings-apply') : $('#settings-apply-restart')).focus();
+    }, 0);
+  }
+
+  function hasRecentAuthentication() {
+    var expiresAt = timestamp(state.session && state.session.recentAuthenticationExpiresAt);
+    // Leave a small margin so authentication cannot expire while the settings
+    // request is being assembled and transmitted.
+    return expiresAt !== null && expiresAt > Date.now() + 5_000;
+  }
+
+  function updateSettingsReauthenticationState(forceRequired) {
+    var required = Boolean(forceRequired || !hasRecentAuthentication());
+    setHidden($('#settings-reauthentication-form'), !required);
+    $('#settings-apply').disabled = required;
+    $('#settings-apply-restart').disabled = required
+      || settingsSecurityStaged('#settings-regenerate-tls')
+      || settingsSecurityStaged('#settings-rotate-token');
+    return required;
+  }
+
+  async function handleSettingsReauthentication(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    if (!form.reportValidity() || !state.session || !isAdministrator()) return;
+    var input = $('#settings-current-password');
+    var button = $('#settings-reauthenticate');
+    var password = input.value;
+    setBusy(button, true, 'Confirming...');
+    showFormError($('#settings-reauthentication-error'), '');
+    var confirmation = api('/admin/api/session/reauthenticate', {
+      method: 'POST', csrf: true, body: { currentPassword: password }
+    });
+    password = '';
+    input.value = '';
+    try {
+      var result = await confirmation;
+      var expiresAt = timestamp(result && result.recentAuthenticationExpiresAt);
+      if (!result || result.ok !== true || expiresAt === null || expiresAt <= Date.now()) {
+        throw incompleteMutationResponse('The password confirmation response was incomplete.');
+      }
+      state.session.recentAuthenticationExpiresAt = expiresAt;
+      updateSettingsReauthenticationState();
+      toast('Password confirmed. You can apply these settings now.', 'good');
+      ($('#settings-apply-restart').disabled ? $('#settings-apply') : $('#settings-apply-restart')).focus();
+    } catch (error) {
+      showFormError($('#settings-reauthentication-error'), errorMessage(error));
+      updateSettingsReauthenticationState(true);
+      input.focus();
+    } finally {
+      setBusy(button, false);
+    }
   }
 
   function scrubSettingsRequest(requestBody) {
@@ -3080,8 +3432,26 @@
     }
   }
 
-  async function applySettings() {
+  async function restartApplication() {
+    await api('/admin/api/settings/restart', { method: 'POST', csrf: true, body: {} });
+    toast('Restart accepted. Reconnect in a few seconds.', 'good', 10_000);
+  }
+
+  async function restartNow() {
+    var button = $('#settings-restart-now');
+    setBusy(button, true, 'Restarting...');
+    try { await restartApplication(); }
+    catch (error) { toast(errorMessage(error), 'bad', 10_000); setBusy(button, false); }
+  }
+
+  async function applySettings(event) {
     if (!state.settingsProjection || !isAdministrator()) return;
+    if (updateSettingsReauthenticationState()) {
+      showFormError($('#settings-review-error'), 'Confirm your current password before applying these settings.');
+      $('#settings-current-password').focus();
+      return;
+    }
+    var restartAfterApply = event && event.currentTarget && event.currentTarget.id === 'settings-apply-restart';
     var form = $('#settings-form');
     if (!validateSettingsForm()) {
       $('#settings-review-dialog').close();
@@ -3103,7 +3473,7 @@
       requestBody.regenerateTls = true;
       requestBody.tlsSubjectAltNames = splitSettingsLines($('#settings-tls-names').value);
     }
-    var button = $('#settings-apply');
+    var button = event && event.currentTarget ? event.currentTarget : $('#settings-apply');
     setBusy(button, true, 'Applying...');
     showFormError($('#settings-review-error'), '');
     var saveRequest = api('/admin/api/settings', { method: 'PUT', csrf: true, body: requestBody });
@@ -3129,11 +3499,21 @@
       if (analyticsContact && analyticsContact.attempted === true) {
         toast(analyticsContact.delivered === true
           ? 'Analytics enabled and the initial contact was sent.'
-          : 'Analytics was enabled, but the initial contact could not be sent.',
+          : analyticsContact.reasonCode === 'collector_browser_challenge'
+            ? 'Analytics was enabled, but Cloudflare blocked the collector request with a browser challenge.'
+            : 'Analytics was enabled, but the initial contact could not be sent.',
         analyticsContact.delivered === true ? 'good' : 'warn', analyticsContact.delivered === true ? 5_000 : 12_000);
       } else toast('Settings saved successfully.', 'good');
       if (oneTimeToken) showAutomationToken(oneTimeToken, result.automationTokenDeliveryId);
       oneTimeToken = '';
+      if (restartAfterApply && !$('#settings-token-dialog').open) {
+        try { await restartApplication(); }
+        catch (restartError) {
+          setHidden($('#settings-restart-banner'), false);
+          toast('Settings were saved, but restart failed: ' + errorMessage(restartError), 'warn', 12_000);
+        }
+        return;
+      }
       if (!$('#settings-token-dialog').open) await refreshBootstrap({ force: true, quiet: true });
     } catch (error) {
       if (error && error.settingsCommitted) {
@@ -3182,6 +3562,11 @@
         return;
       }
       var suffix = secretLabels.length ? ' Entered secret values were cleared; re-enter them before retrying.' : '';
+      if (error && error.code === 'reauthentication_required') {
+        if (state.session) state.session.recentAuthenticationExpiresAt = 0;
+        updateSettingsReauthenticationState(true);
+        $('#settings-current-password').focus();
+      }
       showFormError($('#settings-review-error'), errorMessage(error) + suffix);
       showFormError($('#settings-error'), errorMessage(error) + suffix);
     } finally {
@@ -3189,6 +3574,7 @@
       expectedSettingsRevision = 0;
       automationTokenRotationRequested = false;
       tlsRegenerationRequested = false;
+      restartAfterApply = false;
       setBusy(button, false);
     }
   }
@@ -3329,6 +3715,9 @@
         description: 'Save a private moderation note for the selected player.',
         fields: [
           { name: 'player', label: 'Connected player', type: 'player', required: true, full: true },
+          { name: 'type', label: 'Category', type: 'select', value: 'note', options: [
+            ['note', 'General note'], ['incident', 'Incident / tribe dispute'], ['positive', 'Positive note'], ['warning', 'Warning record']
+          ], required: true, full: true },
           { name: 'note', label: 'Staff note', type: 'textarea', required: true, maxLength: 1_000, full: true }
         ]
       },
@@ -3460,6 +3849,13 @@
         return new Option(entry.label, entry.value);
       }));
       input.replaceChildren.apply(input, options);
+    } else if (field.type === 'select') {
+      input = document.createElement('select');
+      setCommonFieldAttributes(input, field);
+      var choices = Array.isArray(field.options) ? field.options.map(function (choice) {
+        return new Option(safeString(choice[1], 100), safeString(choice[0], 64));
+      }) : [];
+      input.replaceChildren.apply(input, choices);
     } else if (field.type === 'checkbox') {
       label.className = 'checkbox-field' + (field.full ? ' full' : '');
       input = document.createElement('input');
@@ -3889,11 +4285,21 @@
       $('#create-operator-form').reset();
       showFormError($('#create-operator-error'), '');
     }
+    if (dialog === $('#operator-permissions-dialog')) {
+      state.permissionOperator = null;
+      $('#operator-permissions-form').reset();
+      $('#operator-permission-options').replaceChildren();
+      showFormError($('#operator-permissions-error'), '');
+    }
     if (dialog === $('#change-password-dialog')) {
       $('#change-password-form').reset();
       showFormError($('#change-password-error'), '');
     }
-    if (dialog === $('#settings-review-dialog')) showFormError($('#settings-review-error'), '');
+    if (dialog === $('#settings-review-dialog')) {
+      $('#settings-reauthentication-form').reset();
+      showFormError($('#settings-reauthentication-error'), '');
+      showFormError($('#settings-review-error'), '');
+    }
     if (state.lastDialogTrigger && state.lastDialogTrigger.isConnected) state.lastDialogTrigger.focus();
     if ((dialog === $('#player-dialog') || dialog === $('#result-dialog')) && state.currentTab === 'players') {
       window.setTimeout(function () { loadPlayers({ quiet: true, purpose: 'player' }); }, 0);
@@ -3945,6 +4351,7 @@
       window.setTimeout(function () { $('#operator-username').focus(); }, 0);
     });
     $('#create-operator-form').addEventListener('submit', handleCreateOperator);
+    $('#operator-permissions-form').addEventListener('submit', handleOperatorPermissions);
     $('#copy-temporary-password').addEventListener('click', async function () {
       var input = $('#temporary-password');
       try {
@@ -3965,6 +4372,7 @@
       else if ($('#create-operator-button') && !$('#create-operator-button').hidden) $('#create-operator-button').focus();
     });
     $('#settings-form').addEventListener('submit', reviewSettings);
+    $('#settings-reauthentication-form').addEventListener('submit', handleSettingsReauthentication);
     $('#settings-form').addEventListener('input', function (event) {
       if (event.target.dataset && event.target.dataset.settingField === 'id') event.target.setCustomValidity('');
       var card = event.target.closest('[data-settings-server]');
@@ -3988,9 +4396,16 @@
       loadSettings({ quiet: false });
     });
     $('#settings-add-server').addEventListener('click', addSettingsServer);
+    $('#settings-add-template').addEventListener('click', function () {
+      var row = addSettingsTemplate('', '');
+      if (row) $('[data-template-field="name"]', row).focus();
+    });
+    $('#settings-add-starter-templates').addEventListener('click', addStarterAnnouncementTemplates);
     $('#settings-discard').addEventListener('click', function () { discardSettingsChanges(); });
     $('#settings-review').addEventListener('click', function () { showFormError($('#settings-error'), ''); });
     $('#settings-apply').addEventListener('click', applySettings);
+    $('#settings-apply-restart').addEventListener('click', applySettings);
+    $('#settings-restart-now').addEventListener('click', restartNow);
     for (var stageSelector of ['#settings-rotate-token', '#settings-regenerate-tls']) {
       $(stageSelector).addEventListener('click', function () {
         var staged = this.getAttribute('aria-pressed') === 'true';

@@ -1092,9 +1092,13 @@ export class ClusterBridge {
     const mute = this.state.getMute(this.state.gameMuteKeys(identity));
     const playtime = this.state.getPlaytime?.(player.id);
     const requestedNoteLimit = Math.min(10, Math.max(1, Number.isSafeInteger(noteLimit) ? noteLimit : 10));
-    const storedNotes = this.state.listModerationNotes?.(player.id, 100);
+    const storedNotes = typeof this.state.listModerationNotesWithIds === 'function'
+      ? this.state.listModerationNotesWithIds(player.id, 100)
+      : this.state.listModerationNotes?.(player.id, 100);
     const availableNotes = Array.isArray(storedNotes) ? storedNotes.slice(0, 100) : [];
     const notes = availableNotes.slice(0, requestedNoteLimit).map((note = {}) => ({
+      id: typeof note.id === 'string' ? note.id : '',
+      type: typeof note.type === 'string' ? note.type : 'note',
       text: sanitizeForGame(redactText(note.text, staffRedactionSecrets), 1_000),
       at: Number.isFinite(note.at) && note.at >= 0 ? note.at : null,
       actor: sanitizeIdentity(redactText(note.actor, staffRedactionSecrets), 96),
@@ -1112,6 +1116,21 @@ export class ClusterBridge {
       notesCount: availableNotes.length,
       notes,
     });
+  }
+
+  async adminDeleteModerationNote(value, principalId, noteId, { purpose = 'player' } = {}) {
+    const token = String(value ?? '').trim(); const principal = String(principalId ?? '').trim();
+    const record = this.playerChoiceTokens.get(token); const now = this.now();
+    if (!/^p2:[A-Za-z0-9_-]{24}$/.test(token) || !record || record.expiresAt <= now
+      || !principal || record.discordUserId !== principal || record.scope !== String(purpose)) {
+      if (record?.expiresAt <= now) this.deletePlayerChoiceToken(token);
+      const error = new Error('That player selection is invalid or expired; refresh the player list and try again.');
+      error.code = 'PLAYER_SELECTION_INVALID'; throw error;
+    }
+    if (typeof this.state.removeModerationNote !== 'function') {
+      const error = new Error('Moderation note deletion is unavailable.'); error.code = 'NOTE_DELETE_UNAVAILABLE'; throw error;
+    }
+    return this.state.removeModerationNote(record.eosId, noteId);
   }
 
   /**
@@ -1387,12 +1406,13 @@ export class ClusterBridge {
         `Staff warning: ${message}`,
         { retries: 0 },
       );
+      await this.state.addModerationNote(match.player.id, { text: message, actor, type: 'warning' });
       await this.audit(`WARN ${match.player.name} on ${match.server.id} by ${actor} reason=${message}`);
       return `Warned ${match.player.name} on ${match.server.name}.`;
     }
     if (command === 'note') {
       const match = this.requireSinglePlayer(options.player, options.server, user.id);
-      const note = await this.state.addModerationNote(match.player.id, { text: options.note, actor });
+      const note = await this.state.addModerationNote(match.player.id, { text: options.note, actor, type: options.type ?? 'note' });
       await this.audit(`NOTE ${match.player.name} on ${match.server.id} by ${actor}`);
       return `Saved moderation note for ${match.player.name}: ${note.text}`;
     }
@@ -1777,6 +1797,12 @@ export class ClusterBridge {
     else keys.push(...this.state.gameMuteKeys({ playerName: query }));
     const until = await this.state.setMute(keys, { minutes, reason, actor });
     const targetLabel = matches.length === 1 ? sanitizeIdentity(matches[0].player.name, 48) : visiblePlayerTarget(query);
+    for (const { player } of matches) {
+      await this.state.addModerationNote(player.id, {
+        type: 'mute', actor,
+        text: `Cluster Chat muted for ${minutes} minute${minutes === 1 ? '' : 's'}${reason ? `: ${reason}` : '.'}`,
+      });
+    }
     await this.audit(`MUTE ARK ${targetLabel} by ${actor} until ${new Date(until).toISOString()} reason=${reason}`);
     return { ok: true, message: `${targetLabel} relay-muted for ${minutes} minute${minutes === 1 ? '' : 's'}${matches.length ? ` (${matches.length} online match${matches.length === 1 ? '' : 'es'})` : ''}.` };
   }
@@ -1787,13 +1813,23 @@ export class ClusterBridge {
     if (looksLikePlayerId(query)) keys.push(...this.state.gameMuteKeys({ eosId: String(query).trim() }));
     else keys.push(...this.state.gameMuteKeys({ playerName: query }));
     const targetLabel = matches.length === 1 ? sanitizeIdentity(matches[0].player.name, 48) : visiblePlayerTarget(query);
-    const removed = await this.state.clearMute(keys); if (removed) await this.audit(`UNMUTE ARK ${targetLabel} by ${actor}`);
+    const removed = await this.state.clearMute(keys);
+    if (removed) {
+      for (const { player } of matches) {
+        await this.state.addModerationNote(player.id, { type: 'unmute', actor, text: 'Cluster Chat mute removed.' });
+      }
+      await this.audit(`UNMUTE ARK ${targetLabel} by ${actor}`);
+    }
     return { ok: removed, message: removed ? `${targetLabel} was unmuted.` : `No active relay mute found for ${targetLabel}.` };
   }
 
   async runPlayerAction(action, query, serverId, actor, reason, discordUserId) {
     const { server, player } = this.requireSinglePlayer(query, serverId, discordUserId);
     await server[action](player.id);
+    await this.state.addModerationNote(player.id, {
+      type: action, actor,
+      text: `${action === 'kick' ? 'Kicked from' : 'Banned on'} ${server.name}${reason ? `: ${reason}` : '.'}`,
+    });
     await this.audit(`${action.toLocaleUpperCase('en-US')} ${player.name} on ${server.id} by ${actor} reason=${reason}`);
     return { ok: true, message: `${player.name} ${action === 'kick' ? 'was kicked from' : 'was banned on'} ${server.name}.` };
   }

@@ -164,7 +164,10 @@ export class ArkServer extends EventEmitter {
   }
   async announce(message) {
     const clean = safeOneShotNotice(message, this.config.gameMaxLength, [this.config.password]);
-    return clean ? this.execute(`Broadcast ${clean}`, { retries: 0 }) : '';
+    // ASA can accept Broadcast over RCON while displaying nothing to connected
+    // clients. ServerChat is the reliable all-player RCON delivery mechanism
+    // and leaves the notice visible in the in-game chat history.
+    return clean ? this.execute(`ServerChat ${clean}`, { retries: 0 }) : '';
   }
   // Administrative mutations are deliberately sent once. A timeout can mean
   // the server applied the command but the response was lost; retrying could

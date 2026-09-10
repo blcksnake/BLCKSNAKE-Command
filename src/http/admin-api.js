@@ -8,11 +8,16 @@ import {
   validateOperatorPassword,
 } from '../core/operator-credentials.js';
 import { PermissionLevel } from '../core/permissions.js';
+import {
+  MODERATOR_ACTION_GRANTS, hasOperatorActionGrant, normalizeOperatorActionGrants,
+} from '../core/operator-permissions.js';
+import { normalizeModerationNoteType, validModerationNoteId } from '../core/moderation-notes.js';
 import { isLoopbackHost } from '../core/network.js';
 import { redactText } from '../core/redaction.js';
 import { SlidingWindowRateLimiter } from '../core/rate-limiter.js';
 import { normalizeWhitespace, truncateCodePoints } from '../core/sanitize.js';
 import { redact } from '../logger.js';
+import { scanSftpHostKey, SftpHostKeyScanError } from '../adapters/profiles/sftp-host-key-scan.js';
 
 const SESSION_COOKIE = 'asa_admin_session';
 const SECURE_SESSION_COOKIE = '__Host-asa_admin_session';
@@ -58,7 +63,7 @@ const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
 const PLAYER_PURPOSES = new Set(ACTIONS.filter((action) => action.player).map((action) => action.id));
 const UNCERTAIN_ON_FAILURE = new Set([
   'announce', 'announce-template', 'save-world', 'restart', 'cancel-restart', 'give-item', 'give-xp',
-  'warn', 'kick', 'ban', 'whitelist', 'unwhitelist', 'destroy-wild-dinos', 'rcon',
+  'warn', 'note', 'mute-player', 'unmute-player', 'kick', 'ban', 'whitelist', 'unwhitelist', 'destroy-wild-dinos', 'rcon',
 ]);
 
 export class AdminApiError extends Error {
@@ -113,6 +118,7 @@ function publicOperator(account) {
   if (!account) return null;
   return {
     id: account.id, username: account.username, role: account.role, enabled: account.enabled, owner: account.owner,
+    actionGrants: [...(account.actionGrants ?? [])],
     mustChangePassword: account.mustChangePassword, recordRevision: account.recordRevision,
     createdAt: account.createdAt, updatedAt: account.updatedAt,
   };
@@ -240,7 +246,10 @@ export function normalizeAdminAction(action, rawOptions, config = {}) {
     case 'warn':
       rejectUnknown(options, ['player', 'message']); output.player = playerSelection(options.player); output.message = requiredText(options.message, 'Warning', 500); break;
     case 'note':
-      rejectUnknown(options, ['player', 'note']); output.player = playerSelection(options.player); output.note = requiredText(options.note, 'Note', 1_000); break;
+      rejectUnknown(options, ['player', 'type', 'note']); output.player = playerSelection(options.player);
+      try { output.type = normalizeModerationNoteType(options.type); }
+      catch { fail(400, 'invalid_input', 'Choose a valid staff-note category.'); }
+      output.note = requiredText(options.note, 'Note', 1_000); break;
     case 'mute-player':
       rejectUnknown(options, ['player', 'minutes', 'reason']); output.player = playerSelection(options.player);
       output.minutes = integer(options.minutes, 'Mute duration', 1, config.moderation?.maxMuteMinutes ?? 43_200, config.moderation?.defaultMuteMinutes ?? 15);
@@ -293,7 +302,8 @@ export class AdminApi {
   constructor({
     config, bridge, state = null, statusProjector, metrics = null, logger = null,
     now = () => Date.now(), randomBytes = crypto.randomBytes, passwordService = null,
-    settingsService = null, onOwnerSetupCompleted = null,
+    settingsService = null, onOwnerSetupCompleted = null, sftpHostKeyScanner = scanSftpHostKey,
+    onRestartRequested = null,
   } = {}) {
     const bridgeConfig = bridge?.config ?? {};
     this.config = {
@@ -304,6 +314,7 @@ export class AdminApi {
     };
     this.bridge = bridge; this.state = state ?? bridge?.state; this.statusProjector = statusProjector; this.metrics = metrics; this.logger = logger;
     this.settingsService = settingsService; this.onOwnerSetupCompleted = onOwnerSetupCompleted;
+    this.sftpHostKeyScanner = sftpHostKeyScanner; this.onRestartRequested = onRestartRequested;
     if (!this.state) throw new Error('Admin API requires the encrypted state store');
     this.now = now; this.randomBytes = randomBytes; this.sessions = new Map(); this.confirmations = new Map(); this.idempotency = new Map(); this.activity = [];
     this.operatorMutationChain = Promise.resolve();
@@ -312,6 +323,7 @@ export class AdminApi {
     this.loginAddressLimiter = new SlidingWindowRateLimiter({ limit: 10, windowMs: 5 * 60_000, maxKeys: 1_000, now });
     this.loginAccountLimiter = new SlidingWindowRateLimiter({ limit: 5, windowMs: 15 * 60_000, maxKeys: 1_000, now });
     this.loginGlobalLimiter = new SlidingWindowRateLimiter({ limit: 100, windowMs: 5 * 60_000, maxKeys: 2, now });
+    this.reauthenticationLimiter = new SlidingWindowRateLimiter({ limit: 10, windowMs: 15 * 60_000, maxKeys: 1_000, now });
     this.readLimiter = new SlidingWindowRateLimiter({ limit: 180, windowMs: 60_000, maxKeys: 1_000, now });
     this.actionLimiter = new SlidingWindowRateLimiter({ limit: 30, windowMs: 60_000, maxKeys: 1_000, now });
     this.staffRecordLimiter = new SlidingWindowRateLimiter({ limit: 30, windowMs: 60_000, maxKeys: 1_000, now });
@@ -453,7 +465,7 @@ export class AdminApi {
       fail(403, 'administrator_required', 'Administrator access is required.');
     }
     if (recent && this.now() - session.reauthenticatedAt > RECENT_AUTH_TTL_MS) {
-      fail(403, 'reauthentication_required', 'Sign out and sign in again before this sensitive administrator operation.');
+      fail(403, 'reauthentication_required', 'Confirm your current password before this sensitive administrator operation.');
     }
     return session;
   }
@@ -469,7 +481,7 @@ export class AdminApi {
 
   assertActionAllowed(session, definition) {
     this.requireCurrentPassword(session);
-    if (session.permissionLevel < definition.minimumLevel) {
+    if (session.permissionLevel < definition.minimumLevel && !hasOperatorActionGrant(session, definition.id)) {
       this.security('access.role_rejected', { action: definition.id, outcome: 'denied', reasonCode: 'insufficient_role' });
       fail(403, 'action_forbidden', 'Your operator role cannot use that action.');
     }
@@ -535,6 +547,7 @@ export class AdminApi {
     const session = {
       accountId: account.id, actorId: `web_session_${randomToken(this.randomBytes, 18)}`, username: account.username, role: account.role,
       permissionLevel, authRevision: account.authRevision, mustChangePassword: Boolean(account.mustChangePassword),
+      actionGrants: [...(account.actionGrants ?? [])],
       createdAt, reauthenticatedAt: createdAt, expiresAt: createdAt + SESSION_TTL_MS,
       idleExpiresAt: createdAt + SESSION_IDLE_TTL_MS, playerSelections: new Map(),
     };
@@ -644,6 +657,45 @@ export class AdminApi {
     return this.issueSession(account);
   }
 
+  async reauthenticateSession(request, body) {
+    let session = this.requireCurrentPassword(this.requireMutation(request));
+    this.assertCredentialTransport(request);
+    exactObject(body, ['currentPassword']);
+    const rate = this.reauthenticationLimiter.consume(session.key);
+    if (!rate.allowed) {
+      this.security('auth.rate_limited', {
+        principalId: session.accountId, outcome: 'denied', reasonCode: 'reauthentication_limit',
+      });
+      fail(429, 'rate_limited', 'Too many password confirmation attempts. Try again shortly.', {
+        'Retry-After': String(Math.ceil(rate.retryAfterMs / 1_000)),
+      });
+    }
+    const account = this.state.getOperatorAccount?.(session.accountId);
+    const verified = await this.passwordService.verify(body.currentPassword, account?.passwordVerifier ?? null);
+    if (!verified || !account?.enabled) {
+      this.security('auth.reauthentication_rejected', {
+        principalId: session.accountId, outcome: 'denied', reasonCode: 'invalid_current_password',
+      });
+      this.audit('auth.reauthentication_failed', {
+        principalId: session.accountId, role: session.role, outcome: 'denied', reasonCode: 'invalid_current_password',
+      });
+      fail(401, 'invalid_current_password', 'The current password was not accepted.');
+    }
+    // Password verification is asynchronous. Revalidate the session and account
+    // before extending recent authentication so a concurrent account change wins.
+    session = this.requireCurrentPassword(this.requireMutation(request));
+    if (session.accountId !== account.id || !this.audit('auth.session_reauthenticated', {
+      principalId: session.accountId, role: session.role, outcome: 'succeeded',
+    })) {
+      fail(503, 'audit_unavailable', 'Audit logging is unavailable; password confirmation was not recorded.');
+    }
+    const stored = this.sessions.get(session.key);
+    if (!stored) fail(401, 'authentication_required', 'Sign in to continue.');
+    stored.reauthenticatedAt = this.now();
+    const recentAuthenticationExpiresAt = stored.reauthenticatedAt + RECENT_AUTH_TTL_MS;
+    return { ok: true, recentAuthenticationExpiresAt };
+  }
+
   closeSession(request) {
     const session = this.requireMutation(request); this.sessions.delete(session.key);
     this.audit('auth.session_closed', { principalId: session.accountId, role: session.role, outcome: 'succeeded' });
@@ -659,6 +711,7 @@ export class AdminApi {
     const publicSession = {
       username: session.username, role: session.role, csrfToken: this.csrfToken(session), expiresAt: session.expiresAt,
       idleExpiresAt: session.idleExpiresAt, mustChangePassword: session.mustChangePassword,
+      recentAuthenticationExpiresAt: session.reauthenticatedAt + RECENT_AUTH_TTL_MS,
     };
     if (session.mustChangePassword) {
       return {
@@ -678,8 +731,10 @@ export class AdminApi {
       name: safeSnippet(name, this.config.redactionSecrets, 64),
       message: safeSnippet(message, this.config.redactionSecrets, announcementMaxLength),
     }));
-    const allowedActions = ACTIONS.filter((action) => session.permissionLevel >= action.minimumLevel);
-    const rawRcon = session.permissionLevel >= PermissionLevel.ADMIN && Boolean(this.config.moderation?.allowRawRcon);
+    const allowedActions = ACTIONS.filter((action) => session.permissionLevel >= action.minimumLevel
+      || hasOperatorActionGrant(session, action.id));
+    const rawRcon = (session.permissionLevel >= PermissionLevel.ADMIN || hasOperatorActionGrant(session, 'rcon'))
+      && Boolean(this.config.moderation?.allowRawRcon);
     return {
       session: publicSession,
       status,
@@ -783,6 +838,34 @@ export class AdminApi {
     };
   }
 
+  async deletePlayerNote(request, body) {
+    const session = this.requireAdmin(request, { recent: true });
+    exactObject(body, ['player', 'note']);
+    const selection = playerSelection(body.player); const noteId = validModerationNoteId(body.note);
+    if (!noteId) fail(400, 'invalid_input', 'Choose a valid moderation note.');
+    const selected = this.sessions.get(session.key)?.playerSelections.get(selection);
+    if (!selected || selected.purpose !== 'player') {
+      fail(409, 'player_selection_expired', 'Refresh the connected-player list and choose the player again.');
+    }
+    if (this.logger?.healthy === false || !this.audit('player.staff_note_delete_started', {
+      principalId: session.accountId, role: session.role, server: selected.serverId, outcome: 'started',
+    })) fail(503, 'audit_unavailable', 'Audit logging is unavailable; the moderation note was not deleted.');
+    let removed;
+    try { removed = await this.bridge.adminDeleteModerationNote(selection, session.actorId, noteId); }
+    catch (error) {
+      if (error?.code === 'PLAYER_SELECTION_INVALID') {
+        fail(409, 'player_selection_expired', 'Refresh the connected-player list and choose the player again.');
+      }
+      throw error;
+    }
+    if (!removed) fail(404, 'note_not_found', 'That moderation note no longer exists. Refresh the staff record.');
+    if (!this.audit('player.staff_note_deleted', {
+      principalId: session.accountId, role: session.role, server: selected.serverId, outcome: 'succeeded',
+    })) failCommittedMutation('staff_note_delete_committed_audit_failed',
+      'The moderation note was deleted, but audit confirmation failed. Repair audit logging and refresh the staff record.');
+    return { ok: true };
+  }
+
   playerIdentifiers(request, body) {
     let session;
     try {
@@ -868,10 +951,19 @@ export class AdminApi {
 
   activityLog(request) {
     const session = this.requireCurrentPassword(this.requireRead(request));
-    const visible = session.permissionLevel >= PermissionLevel.ADMIN
-      ? this.activity : this.activity.filter((entry) => entry.principalId === session.accountId);
+    const allOperators = session.permissionLevel >= PermissionLevel.ADMIN;
+    const visible = allOperators ? this.activity : this.activity.filter((entry) => entry.principalId === session.accountId);
     return {
-      activity: visible.slice(0, 100).map(({ principalId, ...entry }) => ({ ...entry })),
+      scope: allOperators ? 'all_operators' : 'own',
+      activity: visible.slice(0, 100).map(({ principalId, ...entry }) => {
+        const account = this.state.getOperatorAccount?.(principalId);
+        return {
+          ...entry,
+          actorName: safeSnippet(entry.actorName || account?.username || 'Former operator', this.config.redactionSecrets, 64),
+          actorRole: entry.actorRole === 'admin' || entry.actorRole === 'moderator'
+            ? entry.actorRole : account?.role === 'admin' ? 'admin' : 'moderator',
+        };
+      }),
     };
   }
 
@@ -974,6 +1066,53 @@ export class AdminApi {
     return result;
   }
 
+  async scanSftpFingerprint(request, body) {
+    const session = this.requireAdmin(request, { recent: true });
+    exactObject(body, ['host', 'port']);
+    const rate = this.settingsMutationLimiter.consume(`${session.key}:sftp-scan`);
+    if (!rate.allowed) fail(429, 'rate_limited', 'Too many SFTP key scans. Try again later.', {
+      'Retry-After': String(Math.ceil(rate.retryAfterMs / 1_000)),
+    });
+    if (!this.audit('settings.sftp_host_key_scan_started', {
+      principalId: session.accountId, role: session.role, outcome: 'started',
+    })) fail(503, 'audit_unavailable', 'Audit logging is unavailable; the SFTP host key was not scanned.');
+    try {
+      const result = await this.sftpHostKeyScanner({
+        host: requiredText(body.host, 'SFTP host', 255),
+        port: integer(body.port, 'SFTP port', 1, 65_535, 22),
+      });
+      if (!this.audit('settings.sftp_host_key_scanned', {
+        principalId: session.accountId, role: session.role, outcome: 'succeeded',
+      })) fail(503, 'audit_unavailable', 'The SFTP host key was read but could not be disclosed because audit logging failed.');
+      return result;
+    } catch (error) {
+      this.audit('settings.sftp_host_key_scan_failed', {
+        principalId: session.accountId, role: session.role, outcome: 'failed', reasonCode: error?.code ?? error?.name ?? 'scan_failed',
+      });
+      if (error instanceof AdminApiError) throw error;
+      const expected = error instanceof SftpHostKeyScanError;
+      fail(error?.code === 'SFTP_SCAN_HOST_REFUSED' ? 400 : 502,
+        expected ? error.code : 'sftp_host_key_scan_failed',
+        expected ? error.message : 'The SFTP host key could not be read.');
+    }
+  }
+
+  restartApplication(request) {
+    const session = this.requireAdmin(request, { recent: true });
+    if (typeof this.onRestartRequested !== 'function') {
+      fail(503, 'restart_unavailable', 'Automatic restart is unavailable. Restart the service with its process manager.');
+    }
+    const projection = this.settingsService?.current?.();
+    if (!projection?.restartRequired) fail(409, 'restart_not_required', 'There are no saved settings waiting for restart.');
+    if (projection.instance?.automationToken?.deliveryPending) {
+      fail(409, 'token_ack_required', 'Save and acknowledge the displayed automation token before restarting.');
+    }
+    if (!this.audit('system.restart_requested', {
+      principalId: session.accountId, role: session.role, outcome: 'accepted', revision: projection.revision,
+    })) fail(503, 'audit_unavailable', 'Audit logging is unavailable; restart was not requested.');
+    return { accepted: true };
+  }
+
   async acknowledgeAutomationToken(request, body) {
     let session = this.requireAdmin(request, { recent: true });
     if (!this.settingsService || typeof this.settingsService.acknowledgeAutomationToken !== 'function') {
@@ -1017,7 +1156,8 @@ export class AdminApi {
     const operators = (this.state.listOperatorAccounts?.() ?? []).map((account) => ({
       ...publicOperator(account), isSelf: account.id === session.accountId,
     }));
-    return { operators, count: operators.length, maximum: 64 };
+    const grantableActions = ACTIONS.filter((action) => MODERATOR_ACTION_GRANTS.includes(action.id)).map(publicAction);
+    return { operators, count: operators.length, maximum: 64, grantableActions };
   }
 
   async createOperator(request, body) {
@@ -1042,6 +1182,7 @@ export class AdminApi {
         })) fail(503, 'audit_unavailable', 'Audit logging is unavailable; operator access was not changed.');
         return this.state.createOperatorAccount({
           id, username: identity.username, usernameKey: identity.key, role, enabled: true, owner: false,
+          actionGrants: [],
           passwordVerifier, mustChangePassword: true, authRevision: 1, recordRevision: 1,
           createdAt: at, updatedAt: at, createdBy: session.accountId, updatedBy: session.accountId,
         });
@@ -1064,16 +1205,21 @@ export class AdminApi {
   async updateOperator(request, operatorId, body) {
     let session = this.requireAdmin(request, { recent: true }); const id = safeOperatorId(operatorId);
     if (this.logger?.healthy === false) fail(503, 'audit_unavailable', 'Audit logging is unavailable; operator access was not changed.');
-    exactObject(body, ['role', 'enabled', 'expectedRevision']);
+    exactObject(body, ['role', 'enabled', 'actionGrants', 'expectedRevision']);
     const expectedRevision = integer(body.expectedRevision, 'Expected revision', 1, Number.MAX_SAFE_INTEGER);
     const changes = { updatedAt: this.now(), updatedBy: session.accountId };
     if (Object.hasOwn(body, 'role')) changes.role = operatorRole(body.role);
+    if (Object.hasOwn(body, 'actionGrants')) {
+      const targetRole = changes.role ?? this.state.getOperatorAccount?.(id)?.role ?? 'moderator';
+      try { changes.actionGrants = normalizeOperatorActionGrants(body.actionGrants, { role: targetRole }); }
+      catch (error) { fail(400, 'invalid_permissions', error?.message || 'Choose valid moderator permissions.'); }
+    }
     if (Object.hasOwn(body, 'enabled')) {
       if (typeof body.enabled !== 'boolean') fail(400, 'invalid_input', 'Enabled must be true or false.');
       changes.enabled = body.enabled;
     }
-    if (!Object.hasOwn(changes, 'role') && !Object.hasOwn(changes, 'enabled')) {
-      fail(400, 'invalid_input', 'Choose a role or account status to update.');
+    if (!Object.hasOwn(changes, 'role') && !Object.hasOwn(changes, 'enabled') && !Object.hasOwn(changes, 'actionGrants')) {
+      fail(400, 'invalid_input', 'Choose a role, account status, or moderator permission to update.');
     }
     let account;
     try {
@@ -1299,6 +1445,16 @@ export class AdminApi {
 
     const operationId = randomToken(this.randomBytes, 12); const startedAt = this.now();
     const summary = this.actionSummary(session, normalized.action, normalized.options);
+    const activityContext = {
+      principalId: session.accountId,
+      actorName: safeSnippet(session.username, this.config.redactionSecrets, 64),
+      actorRole: session.role,
+      operationId,
+      action: normalized.action,
+      actionLabel: normalized.definition.label,
+      serverName: this.serverLabel(normalized.options.server),
+      summary,
+    };
     if (!this.audit('admin.action_started', {
       principalId: session.accountId, role: session.role, operationId, action: normalized.action,
       server: normalized.options.server ?? 'cluster', outcome: 'started',
@@ -1308,18 +1464,19 @@ export class AdminApi {
     const promise = (async () => {
       try {
         const result = await this.bridge.executeStaffCommand({
-          command: normalized.action, options: normalized.options, level: session.permissionLevel,
-          principalId: session.actorId, actor: 'http:dashboard', surface: 'dashboard',
+          command: normalized.action, options: normalized.options,
+          level: Math.max(session.permissionLevel, normalized.definition.minimumLevel),
+          principalId: session.actorId, actor: session.username, surface: 'dashboard',
         });
         const message = safeSnippet(result, this.config.redactionSecrets, 1_900); const completedAt = this.now();
-        this.addActivity({ principalId: session.accountId, operationId, action: normalized.action, summary, outcome: 'succeeded', occurredAt: completedAt, durationMs: Math.max(0, completedAt - startedAt) });
+        this.addActivity({ ...activityContext, outcome: 'succeeded', occurredAt: completedAt, durationMs: Math.max(0, completedAt - startedAt) });
         this.metrics?.increment?.('http_admin_actions_total', { action: normalized.action, outcome: 'succeeded' });
         this.audit('admin.action_succeeded', { principalId: session.accountId, role: session.role, operationId, action: normalized.action, server: normalized.options.server ?? 'cluster', outcome: 'succeeded', durationMs: Math.max(0, completedAt - startedAt) });
         return { status: 200, body: { ok: true, outcome: 'succeeded', operationId, message } };
       } catch (error) {
         const completedAt = this.now(); const outcome = UNCERTAIN_ON_FAILURE.has(normalized.action) ? 'uncertain' : 'failed';
         const message = safeSnippet(error?.message || 'The action failed.', this.config.redactionSecrets, 500);
-        this.addActivity({ principalId: session.accountId, operationId, action: normalized.action, summary, outcome, occurredAt: completedAt, durationMs: Math.max(0, completedAt - startedAt), message });
+        this.addActivity({ ...activityContext, outcome, occurredAt: completedAt, durationMs: Math.max(0, completedAt - startedAt), message });
         this.metrics?.increment?.('http_admin_actions_total', { action: normalized.action, outcome });
         this.audit(outcome === 'uncertain' ? 'admin.action_uncertain' : 'admin.action_failed', {
           principalId: session.accountId, role: session.role, operationId, action: normalized.action, server: normalized.options.server ?? 'cluster', outcome,

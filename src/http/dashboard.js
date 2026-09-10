@@ -166,7 +166,7 @@ export const DASHBOARD_HTML = `<!doctype html>
           </div>
           <div class="player-table-wrap surface">
             <table class="player-table">
-              <thead><tr><th scope="col">Player</th><th scope="col">Map</th><th scope="col">Targeting</th><th scope="col">Relay</th><th scope="col">Playtime</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+              <thead><tr><th scope="col">Player</th><th scope="col">Map</th><th scope="col">Targeting</th><th scope="col">Cluster Chat</th><th scope="col">Playtime</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
               <tbody id="player-rows"></tbody>
             </table>
             <div class="empty-state" id="player-empty" hidden><strong>No matching players</strong><span>Try another search or map scope.</span></div>
@@ -241,7 +241,7 @@ export const DASHBOARD_HTML = `<!doctype html>
 
         <section class="tab-panel" id="panel-activity" data-panel="activity" aria-labelledby="activity-heading" hidden>
           <div class="section-heading">
-            <div><p class="eyebrow">Audit trail</p><h2 id="activity-heading">Activity</h2></div>
+            <div><p class="eyebrow">Audit trail</p><h2 id="activity-heading">Activity</h2><p id="activity-scope">Loading your permitted activity...</p></div>
             <button class="secondary-button" id="reload-activity" type="button">Refresh activity</button>
           </div>
           <div class="toolbar surface">
@@ -291,7 +291,8 @@ export const DASHBOARD_HTML = `<!doctype html>
 
           <div class="settings-banner warn" id="settings-restart-banner" role="status" hidden>
             <span class="settings-banner-mark" aria-hidden="true">!</span>
-            <div><strong>Restart required</strong><p id="settings-restart-copy">Restart the application service to activate the saved configuration. It will not restart automatically.</p></div>
+            <div><strong>Restart required</strong><p id="settings-restart-copy">Select Restart now to activate the saved configuration.</p></div>
+            <button class="secondary-button" id="settings-restart-now" type="button">Restart now</button>
           </div>
 
           <div class="settings-status-grid" aria-label="Configuration status">
@@ -309,6 +310,7 @@ export const DASHBOARD_HTML = `<!doctype html>
                 <button type="button" data-settings-jump="settings-maps">Map servers</button>
                 <button type="button" data-settings-jump="settings-discord">Discord</button>
                 <button type="button" data-settings-jump="settings-analytics">Analytics</button>
+                <button type="button" data-settings-jump="settings-templates">Broadcast templates</button>
                 <button type="button" data-settings-jump="settings-security">Security</button>
                 <p class="settings-nav-note">Stored credentials are never returned to this page. Empty secret fields keep the current value.</p>
               </nav>
@@ -352,6 +354,12 @@ export const DASHBOARD_HTML = `<!doctype html>
                     <p>Server names or addresses, credentials, player or Discord identifiers, chat messages, RCON commands, configuration values, or logs.</p>
                     <p>Analytics is off by default. Turn it on, then select Review &amp; apply to send the initial contact. You can disable it at any time.</p>
                   </div>
+                </section>
+
+                <section class="settings-card surface" id="settings-templates" aria-labelledby="settings-templates-heading">
+                  <div class="settings-card-heading"><div><p class="eyebrow">Staff messages</p><h3 id="settings-templates-heading">Broadcast templates</h3><p>Create reusable announcements for the whole cluster or one map.</p></div><button class="secondary-button" id="settings-add-template" type="button">Add template</button></div>
+                  <div class="settings-template-actions"><button class="quiet-button" id="settings-add-starter-templates" type="button">Add missing starter templates</button><span>Up to 32 templates. Changes activate after Apply &amp; restart.</span></div>
+                  <div class="settings-template-list" id="settings-template-list" aria-live="polite"></div>
                 </section>
 
                 <section class="settings-card surface" id="settings-security" aria-labelledby="settings-security-heading">
@@ -514,6 +522,19 @@ export const DASHBOARD_HTML = `<!doctype html>
     </form>
   </dialog>
 
+  <dialog class="account-dialog" id="operator-permissions-dialog" aria-labelledby="operator-permissions-title">
+    <form class="dialog-shell confirm-shell" id="operator-permissions-form">
+      <header class="dialog-header">
+        <div><p class="eyebrow">Granular access</p><h2 id="operator-permissions-title">Moderator permissions</h2><p id="operator-permissions-copy">Choose the additional operations this moderator may perform.</p></div>
+        <button class="icon-button close-dialog" type="button" aria-label="Close moderator permissions">Close</button>
+      </header>
+      <div class="operator-permission-list" id="operator-permission-options"></div>
+      <p class="confirmation-note">Settings, diagnostics, operator management, protected identifiers, raw RCON, and destructive wipes remain administrator-only.</p>
+      <p class="form-error" id="operator-permissions-error" role="alert" hidden></p>
+      <footer class="dialog-footer"><button class="quiet-button close-dialog" type="button">Cancel</button><button class="primary-button" id="save-operator-permissions" type="submit">Save permissions</button></footer>
+    </form>
+  </dialog>
+
   <dialog class="account-dialog" id="temporary-password-dialog" aria-labelledby="temporary-password-title">
     <div class="dialog-shell confirm-shell">
       <header class="dialog-header">
@@ -534,9 +555,15 @@ export const DASHBOARD_HTML = `<!doctype html>
       <div class="settings-review-body">
         <ol class="settings-review-list" id="settings-review-list"></ol>
         <p class="confirmation-note settings-review-impact" id="settings-review-impact">Restart the service to activate these changes.</p>
+        <form class="settings-reauthentication" id="settings-reauthentication-form" hidden>
+          <p><strong>Password confirmation required</strong><span>Your session remains signed in. Confirm your current administrator password to apply sensitive settings.</span></p>
+          <label for="settings-current-password">Current password</label>
+          <div class="secret-input"><input id="settings-current-password" type="password" required maxlength="1024" autocomplete="current-password" spellcheck="false"><button class="secondary-button" id="settings-reauthenticate" type="submit">Confirm password</button></div>
+          <p class="form-error" id="settings-reauthentication-error" role="alert" hidden></p>
+        </form>
       </div>
       <p class="form-error" id="settings-review-error" role="alert" hidden></p>
-      <footer class="dialog-footer"><button class="quiet-button close-dialog" type="button">Continue editing</button><button class="primary-button" id="settings-apply" type="button">Apply settings</button></footer>
+      <footer class="dialog-footer"><button class="quiet-button close-dialog" type="button">Continue editing</button><button class="secondary-button" id="settings-apply" type="button">Apply only</button><button class="primary-button" id="settings-apply-restart" type="button">Apply &amp; restart</button></footer>
     </div>
   </dialog>
 

@@ -1123,7 +1123,7 @@ textarea:focus {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
-  min-width: 210px;
+  min-width: 290px;
 }
 
 .operator-actions button,
@@ -1132,6 +1132,35 @@ textarea:focus {
   padding: 6px 9px;
   font-size: 10px;
   white-space: nowrap;
+}
+
+.operator-permission-list {
+  display: grid;
+  gap: 8px;
+  padding: 20px 22px 4px;
+}
+
+.operator-permission-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #000f1c;
+  cursor: pointer;
+}
+
+.operator-permission-option input { grid-row: 1 / span 2; margin-top: 2px; }
+.operator-permission-option strong { color: var(--text-soft); font-size: 12px; }
+.operator-permission-option span { color: var(--muted); font-size: 10px; font-weight: 400; }
+
+.staff-note-delete {
+  margin-left: auto;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 9px;
 }
 
 .player-name {
@@ -2046,6 +2075,27 @@ dialog::backdrop {
   padding: 11px 12px;
 }
 
+.staff-note-type {
+  justify-self: start;
+  border: 1px solid var(--line-bright);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.staff-note-type-warning,
+.staff-note-type-incident,
+.staff-note-type-mute,
+.staff-note-type-kick,
+.staff-note-type-ban { border-color: #7b4d19; color: #ffd675; }
+
+.staff-note-type-positive,
+.staff-note-type-unmute { border-color: #237454; color: #9df3c2; }
+
 .staff-note-copy {
   margin: 0;
   color: var(--text-soft);
@@ -2573,6 +2623,11 @@ dialog::backdrop {
   line-height: 1.45;
 }
 
+.settings-sftp-scan {
+  justify-self: start;
+  margin-top: 2px;
+}
+
 .settings-field input[type="number"] {
   font-variant-numeric: tabular-nums;
 }
@@ -2648,6 +2703,46 @@ dialog::backdrop {
   margin: 0 0 6px;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.settings-template-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 13px;
+  color: var(--dim);
+  font-size: 10px;
+}
+
+.settings-template-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-template-row {
+  display: grid;
+  grid-template-columns: minmax(140px, .42fr) minmax(260px, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #000f1c;
+  padding: 12px;
+}
+
+.settings-template-row textarea { min-height: 70px; }
+.settings-template-remove { margin-top: 24px; }
+
+.settings-template-empty {
+  border: 1px dashed var(--line-bright);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+@media (max-width: 720px) {
+  .settings-template-row { grid-template-columns: 1fr; }
+  .settings-template-remove { justify-self: start; margin-top: 0; }
 }
 
 #settings-discord-fields.disabled .settings-field,
@@ -2957,6 +3052,38 @@ dialog::backdrop {
 .settings-review-impact {
   margin-right: 0;
   margin-left: 0;
+}
+
+.settings-reauthentication {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+  border: 1px solid var(--line-bright);
+  border-radius: 10px;
+  padding: 14px;
+  background: #001526;
+}
+
+.settings-reauthentication[hidden] { display: none; }
+
+.settings-reauthentication > p:first-child {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.settings-reauthentication > p:first-child span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.settings-reauthentication label {
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 750;
 }
 
 @media (max-width: 1120px) {
