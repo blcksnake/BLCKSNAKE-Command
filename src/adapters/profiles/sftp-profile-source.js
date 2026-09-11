@@ -65,7 +65,11 @@ function positiveInteger(value, field, minimum, maximum) {
 }
 
 function normalizeHostKeyFingerprint(value) {
-  const fingerprint = requiredText(value, 'SFTP host-key SHA-256 fingerprint', 128);
+  const fingerprint = String(value ?? '').trim();
+  if (!fingerprint) return '';
+  if (fingerprint.length > 128 || /[\0\r\n]/u.test(fingerprint)) {
+    fail('SFTP host-key SHA-256 fingerprint must not contain control characters');
+  }
   const normalized = normalizeSshSha256Fingerprint(fingerprint);
   if (!normalized) fail('SFTP host-key SHA-256 fingerprint must be 64 hexadecimal characters or OpenSSH SHA256:base64 form');
   return normalized;
@@ -208,7 +212,11 @@ export class SftpProfileSource {
     this.port = positiveInteger(config.port, 'SFTP port', 1, 65_535);
     this.username = requiredText(config.username, 'SFTP username', 256);
     this.password = requiredSecret(config.password, 'SFTP password');
+    this.verifyHostKey = config.verifyHostKey !== false;
     this.hostKeySha256 = normalizeHostKeyFingerprint(config.hostKeySha256);
+    if (this.verifyHostKey && !this.hostKeySha256) {
+      fail('SFTP host-key SHA-256 fingerprint is required when host identity verification is enabled');
+    }
     this.directories = normalizeDirectories(config);
     this.connectTimeoutMs = positiveInteger(config.connectTimeoutMs ?? 5_000, 'SFTP connect timeout', 100, 120_000);
     this.operationTimeoutMs = positiveInteger(config.operationTimeoutMs ?? 15_000, 'SFTP operation timeout', 100, 300_000);
@@ -224,16 +232,19 @@ export class SftpProfileSource {
   }
 
   connectionOptions() {
-    return {
+    const options = {
       host: this.host,
       port: this.port,
       username: this.username,
       password: this.password,
       readyTimeout: this.connectTimeoutMs,
-      hostHash: 'sha256',
-      hostVerifier: (fingerprint) => hostKeyMatches(fingerprint, this.hostKeySha256),
       algorithms: MODERN_SSH_ALGORITHMS,
     };
+    if (this.verifyHostKey) {
+      options.hostHash = 'sha256';
+      options.hostVerifier = (fingerprint) => hostKeyMatches(fingerprint, this.hostKeySha256);
+    }
+    return options;
   }
 
   async getProfile(eosId) {

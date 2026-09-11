@@ -9,6 +9,7 @@ BLCKSNAKE Command can run privileged ARK commands. Access to the dashboard, Dock
 - Trust the generated CA on administrator devices instead of bypassing certificate checks.
 - Use a different RCON password for every map.
 - Use a dedicated download-only SFTP account and verify its host-key fingerprint separately.
+- If a host regenerates SSH keys and host verification is disabled for that map, keep SFTP on an isolated trusted network and use a unique download-only password; without key verification, an impersonating host can receive that credential.
 - Limit the Discord bot and staff roles to the permissions they need.
 
 ## Accounts and actions

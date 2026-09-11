@@ -25,7 +25,7 @@ RCON is plaintext. Keep it on a private LAN, VPN, or encrypted tunnel. Public RC
 
 ## Player-profile access
 
-Per-map SFTP access is optional. Use a dedicated download-only account. The dashboard copies the map's RCON IP into the SFTP host field and recognizes common official ASA map names. Select **Scan host key** to fill the SHA-256 fingerprint without sending the SFTP password; compare the result with your hosting provider when possible. Both the usual `SHA256:...` OpenSSH form and 64-character hexadecimal form are accepted. Enter the save directory or map token required by the ARK host.
+Per-map SFTP access is optional. Use a dedicated download-only account. The dashboard copies the map's RCON IP into the SFTP host field and recognizes common official ASA map names. Select **Scan host key** to fill the SHA-256 fingerprint without sending the SFTP password; compare the result with your hosting provider when possible. Both the usual `SHA256:...` OpenSSH form and 64-character hexadecimal form are accepted. If a managed game host regenerates its SSH key, scan and apply the new key for that map. Hosts that rotate keys on every restart can use the per-map **Verify host identity** switch; disabling it avoids key rejection but allows an impersonating machine on that network to receive the SFTP password. Enter the save directory or map token required by the ARK host.
 
 Profile access allows BLCKSNAKE Command to verify connected-player targets for supported administrative actions. It does not need upload or delete permissions.
 

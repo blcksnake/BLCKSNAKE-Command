@@ -12,7 +12,7 @@ const SERVER_FIELDS = new Set([
   'connectTimeoutMs', 'commandTimeoutMs', 'fragmentIdleMs', 'retries', 'password', 'profileImport',
 ]);
 const PROFILE_FIELDS = new Set([
-  'enabled', 'host', 'port', 'username', 'password', 'clearPassword', 'hostKeySha256', 'mapName', 'directories',
+  'enabled', 'verifyHostKey', 'host', 'port', 'username', 'password', 'clearPassword', 'hostKeySha256', 'mapName', 'directories',
   'connectTimeoutMs', 'operationTimeoutMs', 'retryIntervalMs', 'revalidateIntervalMs', 'maxFileBytes',
 ]);
 const DISCORD_FIELDS = new Set([
@@ -113,9 +113,11 @@ function remoteDirectory(value) {
 }
 
 function normalizeProfile(raw, current, serverHost) {
-  const source = exact(raw, PROFILE_FIELDS, 'Profile import settings', new Set(['password', 'clearPassword']));
+  const source = exact(raw, PROFILE_FIELDS, 'Profile import settings', new Set(['password', 'clearPassword', 'verifyHostKey']));
   const enabled = flag(source.enabled, 'Profile import enabled');
   const existing = current ?? applyDefaults({ servers: [{ id: 'default', name: 'Default', host: serverHost, port: 1, password: 'x' }] }).servers[0].profileImport;
+  const verifyHostKey = Object.hasOwn(source, 'verifyHostKey')
+    ? flag(source.verifyHostKey, 'Verify SFTP host identity') : existing.verifyHostKey !== false;
   const clearPassword = Object.hasOwn(source, 'clearPassword') ? flag(source.clearPassword, 'Clear SFTP password') : false;
   if (clearPassword && Object.hasOwn(source, 'password')) {
     fail(400, 'invalid_settings', 'Replace and clear cannot both be selected for the SFTP password.');
@@ -128,11 +130,14 @@ function normalizeProfile(raw, current, serverHost) {
   }
   const rawFingerprint = text(source.hostKeySha256, 'SFTP host-key fingerprint', { maximum: 64 });
   const hostKeySha256 = rawFingerprint ? normalizeSshSha256Fingerprint(rawFingerprint) : '';
-  if ((enabled || rawFingerprint) && !hostKeySha256) {
+  if (rawFingerprint && !hostKeySha256) {
     fail(400, 'invalid_settings', 'SFTP host-key fingerprint must be 64 hexadecimal characters or OpenSSH SHA256:base64 form.');
   }
+  if (enabled && verifyHostKey && !hostKeySha256) {
+    fail(400, 'invalid_settings', 'Scan or enter the SFTP host-key fingerprint, or explicitly disable host identity verification for this map.');
+  }
   const output = {
-    enabled,
+    enabled, verifyHostKey,
     host: text(source.host || serverHost, 'SFTP host', { minimum: 1, maximum: 255 }),
     port: integer(source.port, 'SFTP port', 1, 65_535),
     username: text(source.username, 'SFTP username', { maximum: 128 }),
@@ -285,7 +290,8 @@ function normalizeSettings(raw, currentRuntime) {
 
 function projectProfile(profile = {}) {
   return {
-    enabled: Boolean(profile.enabled), host: profile.host ?? '', port: profile.port ?? 22,
+    enabled: Boolean(profile.enabled), verifyHostKey: profile.verifyHostKey !== false,
+    host: profile.host ?? '', port: profile.port ?? 22,
     username: profile.username ?? '', passwordConfigured: Boolean(profile.password),
     hostKeySha256: profile.hostKeySha256 ?? '', mapName: profile.mapName ?? '',
     directories: [...(profile.directories ?? [])],

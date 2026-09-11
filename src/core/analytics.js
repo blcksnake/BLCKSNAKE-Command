@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 
 const APP_NAME = 'BLCKSNAKE Command';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const SCHEMA_VERSION = 1;
 const HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1_000;
 const REQUEST_TIMEOUT_MS = 5_000;

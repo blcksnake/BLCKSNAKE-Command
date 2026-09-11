@@ -2218,6 +2218,7 @@
         passwordConfigured: Boolean(server.passwordConfigured),
         profileImport: {
           enabled: Boolean(profileSource.enabled),
+          verifyHostKey: profileSource.verifyHostKey !== false,
           host: safeString(profileSource.host || server.host || '', 255),
           port: boundedInteger(profileSource.port, 22, 1, 65_535),
           username: safeString(profileSource.username, 128),
@@ -2506,6 +2507,8 @@
         throw new ApiError('The SFTP server returned an invalid host key.', 502, 'INVALID_HOST_KEY_RESPONSE');
       }
       settingControl(card, 'profile.hostKeySha256').value = result.openssh || result.fingerprint;
+      settingControl(card, 'profile.verifyHostKey').checked = true;
+      updateProfileFieldState(card);
       updateSettingsDirtyState();
       toast('Host key scanned. Compare it with your host provider if possible, then apply the settings.', 'good', 10_000);
     } catch (error) {
@@ -2520,6 +2523,13 @@
     var fields = $('.settings-profile-fields', card);
     if (!toggle || !fields) return;
     var enabled = toggle.checked;
+    var verifyHostKey = settingControl(card, 'profile.verifyHostKey');
+    var fingerprint = settingControl(card, 'profile.hostKeySha256');
+    if (verifyHostKey) verifyHostKey.disabled = !enabled;
+    if (fingerprint) {
+      fingerprint.required = enabled && Boolean(verifyHostKey && verifyHostKey.checked);
+      fingerprint.disabled = !enabled || !verifyHostKey || !verifyHostKey.checked;
+    }
     var clearPassword = settingControl(card, 'profile.clearPassword');
     if (clearPassword) {
       clearPassword.setCustomValidity(clearPassword.checked && enabled
@@ -2623,11 +2633,12 @@
       ? (profile.passwordConfigured ? 'Read-only credential configured' : 'Credential required')
       : 'Optional player-ID discovery');
     var profileSwitch = settingSwitch('Profile import enabled', 'profile.enabled', profile.enabled);
+    var verifyProfileHostKey = settingSwitch('Verify host identity', 'profile.verifyHostKey', profile.verifyHostKey !== false);
     var clearProfilePassword = settingSwitch('Delete saved password', 'profile.clearPassword', false);
     var clearProfileInput = $('[data-setting-field="profile.clearPassword"]', clearProfilePassword);
     clearProfilePassword.hidden = !profile.passwordConfigured;
     clearProfileInput.disabled = !profile.passwordConfigured;
-    sftp.heading.append(profileSwitch, clearProfilePassword);
+    sftp.heading.append(profileSwitch, verifyProfileHostKey, clearProfilePassword);
     var profileFields = element('div', 'settings-field-grid settings-profile-fields');
     var inheritedProfileHost = !profile.passwordConfigured && profile.host === '127.0.0.1'
       && server.host !== '127.0.0.1' ? server.host : (profile.host || server.host);
@@ -2640,10 +2651,10 @@
     $('[data-setting-field]', profilePort).dataset.profileRequired = 'true';
     $('[data-setting-field]', profileUser).dataset.profileRequired = 'true';
     var fingerprintField = settingInput('Host-key SHA-256', 'profile.hostKeySha256', profile.hostKeySha256, {
-      full: true, required: true, maximum: 64,
+      full: true, required: profile.verifyHostKey !== false, maximum: 64,
       pattern: '(?:[A-Fa-f0-9]{64}|SHA256:[A-Za-z0-9+/]{43}={0,1})',
       placeholder: 'SHA256:... or 64 hexadecimal characters',
-      help: 'Pinning protects the SFTP password if another machine impersonates this server. You can scan the key, then compare it with your host provider if possible.'
+      help: 'Recommended: scan and pin the key. If this host rotates keys, you may disable Verify host identity for this map, but an impersonating machine could then receive the SFTP password.'
     });
     var scanFingerprint = element('button', 'quiet-button settings-sftp-scan', 'Scan host key');
     scanFingerprint.type = 'button';
@@ -2941,6 +2952,7 @@
     var profileEnabled = settingControl(card, 'profile.enabled').checked;
     var profile = {
       enabled: profileEnabled,
+      verifyHostKey: settingControl(card, 'profile.verifyHostKey').checked,
       host: settingControl(card, 'profile.host').value.trim(),
       port: settingNumber(card, 'profile.port'),
       username: settingControl(card, 'profile.username').value.trim(),
@@ -3096,7 +3108,7 @@
       enabled: true, pollIntervalMs: 1_000, playerRefreshIntervalMs: 15_000, connectTimeoutMs: 3_000,
       commandTimeoutMs: 5_000, fragmentIdleMs: 100, retries: 2, passwordConfigured: false,
       profileImport: {
-        enabled: false, host: '127.0.0.1', port: 22, username: '', passwordConfigured: false,
+        enabled: false, verifyHostKey: true, host: '127.0.0.1', port: 22, username: '', passwordConfigured: false,
         hostKeySha256: '', mapName: '', directories: [], connectTimeoutMs: 5_000, operationTimeoutMs: 15_000,
         retryIntervalMs: 60_000, revalidateIntervalMs: 300_000, maxFileBytes: 16 * 1024 * 1024
       }

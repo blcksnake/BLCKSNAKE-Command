@@ -20,6 +20,7 @@ const DEFAULT_SERVER = Object.freeze({
 
 const DEFAULT_PROFILE_IMPORT = Object.freeze({
   enabled: false,
+  verifyHostKey: true,
   host: '',
   port: 22,
   username: '',
@@ -194,7 +195,12 @@ export function validateConfig(config, { allowNoServers = false, allowManagedSec
       positiveInteger(profile.port, `${prefix}.profileImport.port`, 1, 65535);
       assert(typeof profile.username === 'string' && profile.username, `${prefix}.profileImport.username is required when enabled`);
       assert(typeof profile.password === 'string' && profile.password, `${prefix}.profileImport.password is required when enabled`);
-      assert(Boolean(normalizeSshSha256Fingerprint(profile.hostKeySha256)), `${prefix}.profileImport.hostKeySha256 must be a SHA-256 hex or OpenSSH fingerprint`);
+      assert(typeof profile.verifyHostKey === 'boolean', `${prefix}.profileImport.verifyHostKey must be a boolean`);
+      if (profile.verifyHostKey) {
+        assert(Boolean(normalizeSshSha256Fingerprint(profile.hostKeySha256)), `${prefix}.profileImport.hostKeySha256 must be a SHA-256 hex or OpenSSH fingerprint when host verification is enabled`);
+      } else if (profile.hostKeySha256) {
+        assert(Boolean(normalizeSshSha256Fingerprint(profile.hostKeySha256)), `${prefix}.profileImport.hostKeySha256 must be a SHA-256 hex or OpenSSH fingerprint`);
+      }
       assert(/^[A-Za-z0-9_-]{1,64}$/.test(profile.mapName ?? ''), `${prefix}.profileImport.mapName is required when enabled`);
     }
   }

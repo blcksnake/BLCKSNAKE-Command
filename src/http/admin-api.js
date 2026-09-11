@@ -1474,7 +1474,9 @@ export class AdminApi {
         this.audit('admin.action_succeeded', { principalId: session.accountId, role: session.role, operationId, action: normalized.action, server: normalized.options.server ?? 'cluster', outcome: 'succeeded', durationMs: Math.max(0, completedAt - startedAt) });
         return { status: 200, body: { ok: true, outcome: 'succeeded', operationId, message } };
       } catch (error) {
-        const completedAt = this.now(); const outcome = UNCERTAIN_ON_FAILURE.has(normalized.action) ? 'uncertain' : 'failed';
+        const completedAt = this.now();
+        const outcome = error?.operationOutcome === 'failed'
+          ? 'failed' : UNCERTAIN_ON_FAILURE.has(normalized.action) ? 'uncertain' : 'failed';
         const message = safeSnippet(error?.message || 'The action failed.', this.config.redactionSecrets, 500);
         this.addActivity({ ...activityContext, outcome, occurredAt: completedAt, durationMs: Math.max(0, completedAt - startedAt), message });
         this.metrics?.increment?.('http_admin_actions_total', { action: normalized.action, outcome });

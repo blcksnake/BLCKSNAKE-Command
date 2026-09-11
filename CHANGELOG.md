@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 - 2026-09-11
+
+- Recover map-specific item and XP targeting after transient SFTP failures, suppress repeated profile-backoff warnings, and report pre-RCON lookup failures deterministically.
+- Keep SFTP host-key verification enabled by default while allowing administrators to explicitly disable it per map for private hosts that regenerate SSH keys.
+
 ## 1.1.0 - 2026-09-10
 
 - Remove CodeQL-reported regular-expression denial-of-service risks from command tokenization and profile-path redaction.

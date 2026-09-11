@@ -54,6 +54,13 @@ function profileBackoffError(server, failure) {
   return error;
 }
 
+function determinateOperationError(message, code = 'PRECONDITION_FAILED') {
+  const error = new Error(message);
+  error.code = code;
+  error.operationOutcome = 'failed';
+  return error;
+}
+
 function choiceScore(label, query) {
   const normalized = normalizeName(label); const search = normalizeName(query);
   if (!search) return 3;
@@ -335,7 +342,7 @@ export class ClusterBridge {
     if (!force && this.profileValidatedAt.has(key) && now - this.profileValidatedAt.get(key) < revalidateMs) return current;
     if (this.pendingProfileImports.has(key)) return this.pendingProfileImports.get(key);
     const sourceFailure = this.activeProfileSourceFailure(server, source, now);
-    if (sourceFailure) throw profileBackoffError(server, sourceFailure);
+    if (!force && sourceFailure) throw profileBackoffError(server, sourceFailure);
     if (!force && this.profileFailuresAt.has(key) && now - this.profileFailuresAt.get(key) < retryMs) return null;
 
     const operation = (async () => {
@@ -382,14 +389,18 @@ export class ClusterBridge {
   }
 
   async syncPlayerProfiles(server, players = server.players ?? []) {
-    if (!this.profileSource(server)) return;
+    const source = this.profileSource(server);
+    if (!source || this.activeProfileSourceFailure(server, source)) return;
     for (const player of players) {
       try { await this.importPlayerProfile(server, player); }
       catch (error) {
+        const code = profileErrorCode(error);
+        if (code === 'PROFILE_SOURCE_BACKOFF') return;
         this.logger?.warn?.('Automatic player ID import failed', {
           event: 'sftp.profile_read_failed', component: 'profile-import', server: server.id,
-          outcome: 'failed', reasonCode: error.code ?? 'PROFILE_IMPORT_FAILED',
+          outcome: 'failed', reasonCode: code,
         });
+        if (SYSTEMIC_PROFILE_ERROR_CODES.has(code)) return;
       }
     }
   }
@@ -1553,7 +1564,7 @@ export class ClusterBridge {
     let lookupFailureCode = null;
     if (source) {
       try {
-        const verifiedId = await this.importPlayerProfile(match.server, match.player);
+        const verifiedId = await this.importPlayerProfile(match.server, match.player, { force: true });
         const validatedAt = this.profileValidatedAt.get(key);
         const fresh = validatedAt != null && this.now() - validatedAt < (source.config?.revalidateIntervalMs ?? 300_000);
         playerDataId = fresh ? String(verifiedId ?? '').trim() : '';
@@ -1568,8 +1579,14 @@ export class ClusterBridge {
     }
     if (!playerDataId) {
       lookupFailureCode ??= this.profileFailureDetails.get(key)?.code ?? this.profileLastErrors.get(match.server.id)?.code ?? null;
-      const automatic = source ? ` Automatic read-only profile lookup did not return it${lookupFailureCode ? ` (${lookupFailureCode})` : ''}; check that map's SFTP access.` : '';
-      throw new Error(`${match.player.name} is connected and their EOS ID was detected automatically, but ASA item/XP commands require a different numeric PlayerDataID.${automatic} Run /asa-admin remember-player-id once, then retry.`);
+      const hostKeyHelp = lookupFailureCode === 'HOST_KEY_REJECTED'
+        ? ` The configured SSH host key for ${match.server.name} does not match. In Settings, scan and apply that map's current key, or explicitly disable host identity verification only if its private network is trusted.`
+        : '';
+      const automatic = source ? ` Automatic read-only profile lookup did not return it${lookupFailureCode ? ` (${lookupFailureCode})` : ''}; check that map's SFTP access.${hostKeyHelp}` : '';
+      throw determinateOperationError(
+        `${match.player.name} is connected and their EOS ID was detected automatically, but ASA item/XP commands require a different numeric PlayerDataID.${automatic} No item or XP command was sent.`,
+        'PLAYER_ID_LOOKUP_FAILED',
+      );
     }
     return { ...match, playerDataId };
   }
