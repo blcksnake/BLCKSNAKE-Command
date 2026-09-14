@@ -1,6 +1,6 @@
 {
   "name": "blcksnake-command",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Secure ARK: Survival Ascended server and cluster administration command center",
   "type": "module",
   "private": true,

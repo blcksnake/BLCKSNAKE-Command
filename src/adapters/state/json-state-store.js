@@ -14,6 +14,7 @@ import {
   MAX_ITEM_PACKAGES, cleanItemPackageId, cloneItemPackage, normalizeItemPackageInput,
   normalizePersistedItemPackages,
 } from '../../core/item-packages.js';
+import { createBundledItemPackages } from '../../core/default-item-packages.js';
 import {
   cleanDiscordUserId,
   cleanItemKey,
@@ -572,7 +573,7 @@ function freshState() {
     version: 1, linksByDiscord: {}, linksByGame: {}, linkCodes: {}, mutes: {}, moderationNotes: {},
     scheduledRestarts: {}, playtimeByEos: {}, seenPlayers: {}, playerDataIds: {}, itemPreferencesByDiscord: {}, history: [],
     operatorDirectory: emptyOperatorDirectory(), installationSettings: null,
-    itemPackages: {}, starterPackageGrants: {},
+    itemPackages: {}, starterPackageGrants: {}, bundledItemPackagesSeeded: false,
   };
 }
 
@@ -580,7 +581,7 @@ export class JsonStateStore {
   constructor({
     file, historyLimit = 500, maxFileBytes = 16 * 1024 * 1024,
     encryptionKey = '', encryptionKeyFile = '', encryptionRequired = false, generateEncryptionKey = false,
-    allowPlaintextMigration = false,
+    allowPlaintextMigration = false, seedBundledItemPackages = false,
     now = () => Date.now(), randomBytes = crypto.randomBytes, encryptionRandomBytes = crypto.randomBytes,
   } = {}) {
     if (!file) throw new Error('State file is required');
@@ -591,7 +592,7 @@ export class JsonStateStore {
     }
     if (encryptionKey && encryptionKeyFile) throw new Error('Configure only one state encryption key source');
     if (typeof encryptionRequired !== 'boolean' || typeof generateEncryptionKey !== 'boolean'
-      || typeof allowPlaintextMigration !== 'boolean') {
+      || typeof allowPlaintextMigration !== 'boolean' || typeof seedBundledItemPackages !== 'boolean') {
       throw new Error('State encryption flags must be booleans');
     }
     if (generateEncryptionKey && !encryptionKeyFile) throw new Error('Automatic state key generation requires a key file');
@@ -602,6 +603,7 @@ export class JsonStateStore {
     this.encryptionRequired = encryptionRequired;
     this.generateEncryptionKey = generateEncryptionKey;
     this.allowPlaintextMigration = allowPlaintextMigration;
+    this.seedBundledItemPackages = seedBundledItemPackages;
     this.encryptionRandomBytes = encryptionRandomBytes;
     this.encryptionKeyPromise = null;
     this.now = now;
@@ -672,6 +674,7 @@ export class JsonStateStore {
     this.state.itemPreferencesByDiscord = normalizeItemPreferences(this.state.itemPreferencesByDiscord);
     this.state.itemPackages = normalizePersistedItemPackages(this.state.itemPackages);
     this.state.starterPackageGrants = normalizeStarterPackageGrants(this.state.starterPackageGrants);
+    this.state.bundledItemPackagesSeeded = this.state.bundledItemPackagesSeeded === true;
     if (!Array.isArray(this.state.history)) this.state.history = [];
     return this.state;
   }
@@ -679,7 +682,7 @@ export class JsonStateStore {
   async load() {
     await fs.mkdir(path.dirname(this.file), { recursive: true });
     const encryptionKey = await this.ensureEncryptionKey();
-    let migratePlaintext = false;
+    let migratePlaintext = false; let created = false;
     try {
       let parsed = JSON.parse(await this.readStateFile());
       if (isEncryptedEnvelope(parsed)) {
@@ -694,11 +697,21 @@ export class JsonStateStore {
       this.hydrateState(parsed);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      await this.save();
+      created = true;
     }
+    const seeded = this.seedBundledPackagesIfNeeded();
     this.pruneExpired();
-    if (migratePlaintext) await this.save();
+    if (created || migratePlaintext || seeded) await this.save();
     return this;
+  }
+
+  seedBundledPackagesIfNeeded() {
+    if (!this.seedBundledItemPackages || this.state.bundledItemPackagesSeeded) return false;
+    const itemPackages = Object.keys(this.state.itemPackages).length === 0
+      ? createBundledItemPackages()
+      : this.state.itemPackages;
+    this.state = { ...this.state, itemPackages, bundledItemPackagesSeeded: true };
+    return true;
   }
 
   save(snapshot = this.state) {

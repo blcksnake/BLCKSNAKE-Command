@@ -1,0 +1,1807 @@
+{
+  "version": 1,
+  "packages": [
+    {
+      "name": "Boss: Aberration - Rockwell - Alpha",
+      "description": "Level 100. Complete tribute set for Rockwell (Alpha) on Aberration.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ],
+        [
+          "alpha-basilisk-fang-be3eae1d1277",
+          1
+        ],
+        [
+          "alpha-karkinos-claw-677a93994dab",
+          1
+        ],
+        [
+          "alpha-reaper-king-barb-54bc36cc54fb",
+          1
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          8
+        ],
+        [
+          "nameless-venom-53df77a1a231",
+          8
+        ],
+        [
+          "reaper-pheromone-gland-b958998ca460",
+          8
+        ],
+        [
+          "rock-drake-feather-e2ab52855239",
+          8
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Aberration - Rockwell - Beta",
+      "description": "Level 75. Complete tribute set for Rockwell (Beta) on Aberration.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          4
+        ],
+        [
+          "nameless-venom-53df77a1a231",
+          4
+        ],
+        [
+          "reaper-pheromone-gland-b958998ca460",
+          4
+        ],
+        [
+          "rock-drake-feather-e2ab52855239",
+          4
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Aberration - Rockwell - Gamma",
+      "description": "Level 45. Complete tribute set for Rockwell (Gamma) on Aberration.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Center - Dual Arena - Alpha",
+      "description": "Level 85. Complete tribute set for Broodmother Lysrix & Megapithecus Dual Arena (Alpha) on The Center.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Center - Dual Arena - Beta",
+      "description": "Level 65. Complete tribute set for Broodmother Lysrix & Megapithecus Dual Arena (Beta) on The Center.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Center - Dual Arena - Gamma",
+      "description": "Level 45. Complete tribute set for Broodmother Lysrix & Megapithecus Dual Arena (Gamma) on The Center.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Crystal Isles - Wyvern Queen - Alpha",
+      "description": "Level 100. Complete tribute set for Crystal Wyvern Queen (Alpha) on Crystal Isles.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "alpha-crystal-talon-7f63d604fdb6",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "crystal-talon-4d382eba50a0",
+          15
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Crystal Isles - Wyvern Queen - Beta",
+      "description": "Level 75. Complete tribute set for Crystal Wyvern Queen (Beta) on Crystal Isles.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "crystal-talon-4d382eba50a0",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Crystal Isles - Wyvern Queen - Gamma",
+      "description": "Level 65. Complete tribute set for Crystal Wyvern Queen (Gamma) on Crystal Isles.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "crystal-talon-4d382eba50a0",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - Desert Titan - Standard",
+      "description": "Level 1. Complete tribute set for Desert Titan (Standard) on Extinction.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-chaos-dc3b23791c83",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          100
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - Forest Titan - Standard",
+      "description": "Level 1. Complete tribute set for Forest Titan (Standard) on Extinction.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-growth-aba554884f61",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          100
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "wood-d29dff5eab30",
+          300
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - Ice Titan - Standard",
+      "description": "Level 1. Complete tribute set for Ice Titan (Standard) on Extinction.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-void-f1577c0dfd87",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          100
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - King Titan - Alpha",
+      "description": "Level 1. Complete tribute set for King Titan (Alpha) on Extinction.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-chaos-dc3b23791c83",
+          1
+        ],
+        [
+          "artifact-of-growth-aba554884f61",
+          1
+        ],
+        [
+          "artifact-of-the-void-f1577c0dfd87",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          1
+        ],
+        [
+          "king-titan-trophy-beta-847a9dc4b3ae",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          300
+        ],
+        [
+          "desert-titan-trophy-ced982638fbc",
+          1
+        ],
+        [
+          "forest-titan-trophy-e76f6a9ddb06",
+          1
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          10
+        ],
+        [
+          "ice-titan-trophy-730454a4b2d7",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - King Titan - Beta",
+      "description": "Level 1. Complete tribute set for King Titan (Beta) on Extinction.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-chaos-dc3b23791c83",
+          1
+        ],
+        [
+          "artifact-of-growth-aba554884f61",
+          1
+        ],
+        [
+          "artifact-of-the-void-f1577c0dfd87",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          300
+        ],
+        [
+          "desert-titan-trophy-ced982638fbc",
+          1
+        ],
+        [
+          "forest-titan-trophy-e76f6a9ddb06",
+          1
+        ],
+        [
+          "king-titan-trophy-gamma-28000028ac67",
+          1
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          5
+        ],
+        [
+          "ice-titan-trophy-730454a4b2d7",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - King Titan - Gamma",
+      "description": "Level 1. Complete tribute set for King Titan (Gamma) on Extinction.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-chaos-dc3b23791c83",
+          1
+        ],
+        [
+          "artifact-of-growth-aba554884f61",
+          1
+        ],
+        [
+          "artifact-of-the-void-f1577c0dfd87",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          150
+        ],
+        [
+          "desert-titan-trophy-ced982638fbc",
+          1
+        ],
+        [
+          "forest-titan-trophy-e76f6a9ddb06",
+          1
+        ],
+        [
+          "ice-titan-trophy-730454a4b2d7",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Beyla - Standard",
+      "description": "Level 50. Complete tribute set for Beyla (World Boss) (Standard) on Fjordur.",
+      "starter": false,
+      "items": [
+        [
+          "runestone-68a999834395",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Fenrisúlfr - Alpha",
+      "description": "Level 100. Complete tribute set for Fenrisúlfr (Alpha) on Fjordur.",
+      "starter": false,
+      "items": [
+        [
+          "alpha-broodmother-trophy-288d57a1abf6",
+          1
+        ],
+        [
+          "alpha-dragon-trophy-3e148a647349",
+          1
+        ],
+        [
+          "alpha-megapithecus-trophy-06092857cf1e",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Fenrisúlfr - Beta",
+      "description": "Level 75. Complete tribute set for Fenrisúlfr (Beta) on Fjordur.",
+      "starter": false,
+      "items": [
+        [
+          "beta-broodmother-trophy-47c0f47be43c",
+          1
+        ],
+        [
+          "beta-dragon-trophy-f85daef4d659",
+          1
+        ],
+        [
+          "beta-megapithecus-trophy-891338af9c18",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Fenrisúlfr - Gamma",
+      "description": "Level 55. Complete tribute set for Fenrisúlfr (Gamma) on Fjordur.",
+      "starter": false,
+      "items": [
+        [
+          "gamma-broodmother-trophy-da3911f639fd",
+          1
+        ],
+        [
+          "gamma-dragon-trophy-4f0392172c27",
+          1
+        ],
+        [
+          "gamma-megapithecus-trophy-9c1092cdb1d6",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Hati + Sköll - Standard",
+      "description": "Level 50. Complete tribute set for Hati & Sköll (World Boss) (Standard) on Fjordur.",
+      "starter": false,
+      "items": [
+        [
+          "runestone-68a999834395",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Steinbjörn - Standard",
+      "description": "Level 50. Complete tribute set for Steinbjörn (World Boss) (Standard) on Fjordur.",
+      "starter": false,
+      "items": [
+        [
+          "runestone-68a999834395",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Genesis 2 - Rockwell Prime - Alpha",
+      "description": "Level 1. Complete tribute set for Rockwell Prime (Alpha) on Genesis: Part 2. All 24 Gen 2 Missions Completed on Alpha.",
+      "starter": false,
+      "items": [
+        [
+          "mutagen-e3a4145a23f9",
+          60
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Genesis 2 - Rockwell Prime - Beta",
+      "description": "Level 1. Complete tribute set for Rockwell Prime (Beta) on Genesis: Part 2. All 24 Gen 2 Missions Completed on Beta.",
+      "starter": false,
+      "items": [
+        [
+          "mutagen-e3a4145a23f9",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Genesis 2 - Rockwell Prime - Gamma",
+      "description": "Level 1. Complete tribute set for Rockwell Prime (Gamma) on Genesis: Part 2. All 24 Gen 2 Missions Completed on Gamma.",
+      "starter": false,
+      "items": [
+        [
+          "mutagen-e3a4145a23f9",
+          15
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Broodmother - Alpha",
+      "description": "Level 70. Complete tribute set for Broodmother Lysrix (Alpha) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Broodmother - Beta",
+      "description": "Level 50. Complete tribute set for Broodmother Lysrix (Beta) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Broodmother - Gamma",
+      "description": "Level 30. Complete tribute set for Broodmother Lysrix (Gamma) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Dragon - Alpha",
+      "description": "Level 100. Complete tribute set for Dragon (Alpha) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Dragon - Beta",
+      "description": "Level 75. Complete tribute set for Dragon (Beta) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          5
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          5
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Dragon - Gamma",
+      "description": "Level 55. Complete tribute set for Dragon (Gamma) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Megapithecus - Alpha",
+      "description": "Level 85. Complete tribute set for Megapithecus (Alpha) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Megapithecus - Beta",
+      "description": "Level 65. Complete tribute set for Megapithecus (Beta) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Megapithecus - Gamma",
+      "description": "Level 45. Complete tribute set for Megapithecus (Gamma) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Overseer - Alpha",
+      "description": "Level 100. Complete tribute set for Overseer (Tek Cave) (Alpha) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "alpha-broodmother-trophy-288d57a1abf6",
+          1
+        ],
+        [
+          "alpha-megapithecus-trophy-06092857cf1e",
+          1
+        ],
+        [
+          "alpha-dragon-trophy-3e148a647349",
+          1
+        ],
+        [
+          "alpha-carnotaurus-arm-e550e3d44147",
+          1
+        ],
+        [
+          "alpha-megalodon-fin-4d4252b75555",
+          1
+        ],
+        [
+          "alpha-mosasaur-tooth-da1b4e057791",
+          1
+        ],
+        [
+          "alpha-raptor-claw-def6b5b3b474",
+          1
+        ],
+        [
+          "alpha-tusoteuthis-eye-a8616cbf82aa",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Overseer - Beta",
+      "description": "Level 80. Complete tribute set for Overseer (Tek Cave) (Beta) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "beta-broodmother-trophy-47c0f47be43c",
+          1
+        ],
+        [
+          "beta-megapithecus-trophy-891338af9c18",
+          1
+        ],
+        [
+          "beta-dragon-trophy-f85daef4d659",
+          1
+        ],
+        [
+          "alpha-carnotaurus-arm-e550e3d44147",
+          1
+        ],
+        [
+          "alpha-raptor-claw-def6b5b3b474",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Overseer - Gamma",
+      "description": "Level 60. Complete tribute set for Overseer (Tek Cave) (Gamma) on The Island.",
+      "starter": false,
+      "items": [
+        [
+          "gamma-broodmother-trophy-da3911f639fd",
+          1
+        ],
+        [
+          "gamma-megapithecus-trophy-9c1092cdb1d6",
+          1
+        ],
+        [
+          "gamma-dragon-trophy-4f0392172c27",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Lost Island - Dinopithecus - Alpha",
+      "description": "Level 100. Complete tribute set for Dinopithecus King (Alpha) on Lost Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          2
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          2
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          2
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Lost Island - Dinopithecus - Beta",
+      "description": "Level 75. Complete tribute set for Dinopithecus King (Beta) on Lost Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          2
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          2
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Lost Island - Dinopithecus - Gamma",
+      "description": "Level 50. Complete tribute set for Dinopithecus King (Gamma) on Lost Island.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          3
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          3
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Dragon + Manticore - Alpha",
+      "description": "Level 95. Complete tribute set for Manticore & Dragon Dual Arena (Alpha) on Ragnarok.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "deathworm-horn-42b3100c20a0",
+          10
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          2
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          2
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          2
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Dragon + Manticore - Beta",
+      "description": "Level 70. Complete tribute set for Manticore & Dragon Dual Arena (Beta) on Ragnarok.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "deathworm-horn-42b3100c20a0",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Dragon + Manticore - Gamma",
+      "description": "Level 45. Complete tribute set for Manticore & Dragon Dual Arena (Gamma) on Ragnarok.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Scorched - Manticore - Alpha",
+      "description": "Level 100. Complete tribute set for Manticore (Alpha) on Scorched Earth.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "alpha-wyvern-trophy-0155ead0e65c",
+          1
+        ],
+        [
+          "deathworm-horn-42b3100c20a0",
+          20
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          10
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Scorched - Manticore - Beta",
+      "description": "Level 75. Complete tribute set for Manticore (Beta) on Scorched Earth.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "deathworm-horn-42b3100c20a0",
+          10
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          2
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          2
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Scorched - Manticore - Gamma",
+      "description": "Level 55. Complete tribute set for Manticore (Gamma) on Scorched Earth.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Triple Arena - Alpha",
+      "description": "Level 70. Complete tribute set for Megapithecus, Manticore & Dragon Triple Arena (Alpha) on Valguero.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Triple Arena - Beta",
+      "description": "Level 50. Complete tribute set for Megapithecus, Manticore & Dragon Triple Arena (Beta) on Valguero.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Triple Arena - Gamma",
+      "description": "Level 30. Complete tribute set for Megapithecus, Manticore & Dragon Triple Arena (Gamma) on Valguero.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Freebie: Community Weekend",
+      "description": "Manual event reward; suggested limit once per community event.",
+      "starter": false,
+      "items": [
+        [
+          "empty-cryopod-398d0bf05109",
+          2
+        ],
+        [
+          "advanced-rifle-bullet-d34d1633bad3",
+          100
+        ],
+        [
+          "medical-brew-18ceafc6b261",
+          20
+        ],
+        [
+          "cooked-prime-meat-4ce6a84b3c0f",
+          50
+        ]
+      ]
+    },
+    {
+      "name": "Freebie: Veteran Thank You",
+      "description": "Manual long-term-player reward; suggested limit once per 30 days.",
+      "starter": false,
+      "items": [
+        [
+          "element-5dfc34c931e4",
+          10
+        ],
+        [
+          "black-pearl-9b072efac14f",
+          100
+        ],
+        [
+          "metal-ingot-678bcf1dbbf1",
+          300
+        ],
+        [
+          "cementing-paste-92462e8e2e9b",
+          300
+        ],
+        [
+          "polymer-1c6575d417ee",
+          100
+        ]
+      ]
+    },
+    {
+      "name": "Freebie: Welcome Back",
+      "description": "Manual returning-player reward; suggested limit once per 14 days.",
+      "starter": false,
+      "items": [
+        [
+          "metal-ingot-678bcf1dbbf1",
+          100
+        ],
+        [
+          "cementing-paste-92462e8e2e9b",
+          100
+        ],
+        [
+          "polymer-1c6575d417ee",
+          50
+        ],
+        [
+          "electronics-c20293769bd9",
+          50
+        ],
+        [
+          "medical-brew-18ceafc6b261",
+          20
+        ]
+      ]
+    },
+    {
+      "name": "Starter: Building Supplies",
+      "description": "Automatic first-join materials for a small first shelter.",
+      "starter": true,
+      "items": [
+        [
+          "wood-d29dff5eab30",
+          300
+        ],
+        [
+          "stone-e94133420336",
+          300
+        ],
+        [
+          "thatch-ba31c05658c7",
+          200
+        ],
+        [
+          "fiber-1a3a41919537",
+          300
+        ],
+        [
+          "hide-f6c3b780b383",
+          100
+        ]
+      ]
+    },
+    {
+      "name": "Starter: Cloth Armor",
+      "description": "Automatic first-join primitive clothing set.",
+      "starter": true,
+      "items": [
+        [
+          "cloth-shirt-27fc3fdfaf02",
+          1
+        ],
+        [
+          "cloth-pants-5bad70dfcb14",
+          1
+        ],
+        [
+          "cloth-boots-7d2e043e6e47",
+          1
+        ],
+        [
+          "cloth-gloves-ee77da48b4ba",
+          1
+        ],
+        [
+          "cloth-hat-65ee9b31d05b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Starter: Survival Essentials",
+      "description": "Automatic first-join basics: tools, water, food, a torch, and a sleeping bag.",
+      "starter": true,
+      "items": [
+        [
+          "stone-pick-d534267017ba",
+          1
+        ],
+        [
+          "stone-hatchet-db46c3e295a3",
+          1
+        ],
+        [
+          "torch-8250fd52b96c",
+          1
+        ],
+        [
+          "waterskin-ab54894c0845",
+          1
+        ],
+        [
+          "cooked-meat-62f6ebec7188",
+          30
+        ],
+        [
+          "hide-sleeping-bag-a264d0eded84",
+          1
+        ]
+      ]
+    }
+  ]
+}

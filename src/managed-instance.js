@@ -1009,6 +1009,9 @@ async function openManagedInstanceWithLock({
       maxDatabaseBytes: useLegacyLimits?.maxDatabaseBytes ?? (stateExists ? 1024 * 1024 * 1024 : 64 * 1024 * 1024),
       busyTimeoutMs: useLegacyLimits?.busyTimeoutMs ?? 5_000,
       encryptionKey: encodeManagedKey(rootKey), encryptionKeyFile: '', encryptionRequired: true, generateEncryptionKey: false,
+      // A legacy snapshot must be authenticated byte-for-byte before any
+      // release defaults are added to the newly published destination.
+      seedBundledItemPackages: initialization?.mode !== 'legacy-sqlite',
     });
     // Only a protected, unpublished initialization key may recover an empty
     // application schema left between SQLite schema creation and its first
@@ -1105,6 +1108,13 @@ async function openManagedInstanceWithLock({
       }
       keyExists = true;
       pendingExists = false;
+    }
+    // A legacy migration remains bound to its authenticated source snapshot
+    // until the root key is published and the recovery journal is removed.
+    // Seed only after that commit point so an interrupted migration can retry.
+    if (initialization?.mode === 'legacy-sqlite' && !pendingExists) {
+      state.seedBundledItemPackages = true;
+      if (state.seedBundledPackagesIfNeeded()) await state.save();
     }
     return {
       managed: true, config, state, paths, runtimeLock,

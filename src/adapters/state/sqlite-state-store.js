@@ -302,6 +302,7 @@ export class SqliteStateStore extends JsonStateStore {
           throw new Error('SQLite state metadata is missing');
         }
         this.loaded = true;
+        this.seedBundledPackagesIfNeeded();
         await this.save();
       } else {
         if (meta.schema_version !== SCHEMA_VERSION || !Number.isSafeInteger(meta.revision) || meta.revision < 1
@@ -321,6 +322,7 @@ export class SqliteStateStore extends JsonStateStore {
         }
         this.hydrateState(parsed);
         this.loaded = true;
+        if (this.seedBundledPackagesIfNeeded()) await this.save();
       }
       if (pruneExpired) this.pruneExpired();
       return this;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 - 2026-09-14
+
+- Bundle and safely seed the 54 starter, engagement, and boss-fight item packages into new or previously empty installations.
+- Preserve existing custom package collections and remember intentional removal so bundled presets are never restored unexpectedly.
+- Increase package capacity to 128 so the bundled catalog leaves ample room for administrator-created packages.
+
 ## 1.2.0 - 2026-09-14
 
 - Add administrator-managed multi-item packages for starter supplies, boss-fight preparation, and other reusable grants. Moderators with **Give Items** access can grant enabled packages to connected players.

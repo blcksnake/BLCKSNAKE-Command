@@ -1,7 +1,7 @@
 import { getItem } from './item-catalog.js';
 import { normalizeWhitespace } from './sanitize.js';
 
-export const MAX_ITEM_PACKAGES = 64;
+export const MAX_ITEM_PACKAGES = 128;
 export const MAX_PACKAGE_ITEMS = 50;
 export const ITEM_PACKAGE_ID_PATTERN = /^pkg_[A-Za-z0-9_-]{22}$/u;
 

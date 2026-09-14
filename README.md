@@ -106,7 +106,7 @@ Do not publish the dashboard or RCON ports directly to the internet.
 ## Build from source
 
 ```bash
-docker build --pull -t blcksnake/blcksnake-command:1.2.0 .
+docker build --pull -t blcksnake/blcksnake-command:1.2.1 .
 ```
 
 Product analytics is disabled by default and requires an administrator to enable it in **Settings**. See [Configuration](docs/CONFIGURATION.md#optional-product-analytics) for the exact data sent.
