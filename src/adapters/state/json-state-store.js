@@ -11,6 +11,10 @@ import { normalizeName, normalizeWhitespace } from '../../core/sanitize.js';
 import { moderationNoteId, normalizeModerationNoteType, validModerationNoteId } from '../../core/moderation-notes.js';
 import { normalizeOperatorActionGrants } from '../../core/operator-permissions.js';
 import {
+  MAX_ITEM_PACKAGES, cleanItemPackageId, cloneItemPackage, normalizeItemPackageInput,
+  normalizePersistedItemPackages,
+} from '../../core/item-packages.js';
+import {
   cleanDiscordUserId,
   cleanItemKey,
   cleanOperatorId,
@@ -304,6 +308,30 @@ function normalizePlayerDataIds(value) {
   return normalized;
 }
 
+function normalizeStarterPackageGrants(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const output = {}; const allowedStates = new Set(['pending', 'attempted', 'succeeded', 'skipped']);
+  for (const [rawEosId, rawGrant] of Object.entries(value)) {
+    try {
+      const eosId = String(rawEosId).trim().toLocaleLowerCase('en-US');
+      if (!/^[a-f0-9]{32}$/u.test(eosId) || !rawGrant || typeof rawGrant !== 'object' || Array.isArray(rawGrant)
+        || typeof rawGrant.eligible !== 'boolean' || !Number.isSafeInteger(rawGrant.observedAt) || rawGrant.observedAt < 0
+        || !rawGrant.packages || typeof rawGrant.packages !== 'object' || Array.isArray(rawGrant.packages)) continue;
+      const packages = {};
+      for (const [rawPackageId, rawPackage] of Object.entries(rawGrant.packages).slice(0, MAX_ITEM_PACKAGES)) {
+        const packageId = cleanItemPackageId(rawPackageId);
+        if (!rawPackage || typeof rawPackage !== 'object' || Array.isArray(rawPackage)
+          || !Number.isSafeInteger(rawPackage.revision) || rawPackage.revision < 1
+          || !Array.isArray(rawPackage.itemStates) || rawPackage.itemStates.length < 1 || rawPackage.itemStates.length > 50
+          || rawPackage.itemStates.some((status) => !allowedStates.has(status))) continue;
+        packages[packageId] = { revision: rawPackage.revision, itemStates: [...rawPackage.itemStates] };
+      }
+      output[eosId] = { eligible: rawGrant.eligible, observedAt: rawGrant.observedAt, packages };
+    } catch { /* Invalid optional starter-delivery records are discarded during load. */ }
+  }
+  return output;
+}
+
 function operatorRecord(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object`);
   return value;
@@ -544,6 +572,7 @@ function freshState() {
     version: 1, linksByDiscord: {}, linksByGame: {}, linkCodes: {}, mutes: {}, moderationNotes: {},
     scheduledRestarts: {}, playtimeByEos: {}, seenPlayers: {}, playerDataIds: {}, itemPreferencesByDiscord: {}, history: [],
     operatorDirectory: emptyOperatorDirectory(), installationSettings: null,
+    itemPackages: {}, starterPackageGrants: {},
   };
 }
 
@@ -641,6 +670,8 @@ export class JsonStateStore {
     }
     this.state.playerDataIds = normalizePlayerDataIds(this.state.playerDataIds);
     this.state.itemPreferencesByDiscord = normalizeItemPreferences(this.state.itemPreferencesByDiscord);
+    this.state.itemPackages = normalizePersistedItemPackages(this.state.itemPackages);
+    this.state.starterPackageGrants = normalizeStarterPackageGrants(this.state.starterPackageGrants);
     if (!Array.isArray(this.state.history)) this.state.history = [];
     return this.state;
   }
@@ -1304,5 +1335,146 @@ export class JsonStateStore {
       .map(([eosId, entry]) => ({ eosId, ...entry }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds)
       .slice(0, Math.max(1, limit));
+  }
+
+  listItemPackages({ includeDisabled = true } = {}) {
+    return Object.values(this.state.itemPackages)
+      .filter((itemPackage) => includeDisabled || itemPackage.enabled)
+      .sort((left, right) => left.name.localeCompare(right.name, 'en-US'))
+      .map(cloneItemPackage);
+  }
+
+  getItemPackage(packageId) {
+    let id;
+    try { id = cleanItemPackageId(packageId); } catch { return null; }
+    return cloneItemPackage(this.state.itemPackages[id]);
+  }
+
+  async createItemPackage(value) {
+    const input = normalizeItemPackageInput(value);
+    return this.enqueueMutation(async () => {
+      const current = this.state.itemPackages;
+      if (Object.keys(current).length >= MAX_ITEM_PACKAGES) throw new Error(`Item packages are limited to ${MAX_ITEM_PACKAGES}`);
+      if (Object.values(current).some((candidate) => candidate.name.toLocaleLowerCase('en-US') === input.name.toLocaleLowerCase('en-US'))) {
+        throw new Error(`Item package ${input.name} already exists`);
+      }
+      let id;
+      do { id = `pkg_${this.randomBytes(16).toString('base64url')}`; } while (current[id]);
+      const at = this.now();
+      const saved = { id, ...input, revision: 1, createdAt: at, updatedAt: at };
+      await this.commitMutation({ ...this.state, itemPackages: { ...current, [id]: saved } });
+      return cloneItemPackage(saved);
+    });
+  }
+
+  async updateItemPackage(packageId, value, { expectedRevision } = {}) {
+    const id = cleanItemPackageId(packageId); const input = normalizeItemPackageInput(value);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error('Expected package revision must be a positive integer');
+    return this.enqueueMutation(async () => {
+      const current = this.state.itemPackages; const existing = current[id];
+      if (!existing) throw new Error('That item package does not exist');
+      if (existing.revision !== expectedRevision) throw new Error('That item package changed; refresh and try again');
+      if (Object.values(current).some((candidate) => candidate.id !== id
+        && candidate.name.toLocaleLowerCase('en-US') === input.name.toLocaleLowerCase('en-US'))) {
+        throw new Error(`Item package ${input.name} already exists`);
+      }
+      const saved = { ...existing, ...input, revision: existing.revision + 1, updatedAt: this.now() };
+      await this.commitMutation({ ...this.state, itemPackages: { ...current, [id]: saved } });
+      return cloneItemPackage(saved);
+    });
+  }
+
+  async deleteItemPackage(packageId, { expectedRevision } = {}) {
+    const id = cleanItemPackageId(packageId);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error('Expected package revision must be a positive integer');
+    return this.enqueueMutation(async () => {
+      const existing = this.state.itemPackages[id];
+      if (!existing) return false;
+      if (existing.revision !== expectedRevision) throw new Error('That item package changed; refresh and try again');
+      const itemPackages = { ...this.state.itemPackages }; delete itemPackages[id];
+      await this.commitMutation({ ...this.state, itemPackages });
+      return true;
+    });
+  }
+
+  async observePlayerForStarterPackages(eosId, displayName, { eligible = true } = {}) {
+    const key = String(eosId ?? '').trim().toLocaleLowerCase('en-US');
+    if (!/^[a-f0-9]{32}$/u.test(key)) return { firstSeen: false, grant: null };
+    if (typeof eligible !== 'boolean') throw new Error('Starter eligibility must be a boolean');
+    const normalizedDisplayName = normalizeWhitespace(displayName);
+    return this.enqueueMutation(async () => {
+      const existingGrant = this.state.starterPackageGrants[key];
+      if (existingGrant) return { firstSeen: false, grant: structuredClone(existingGrant) };
+      const alreadySeen = Boolean(this.state.seenPlayers[key]); const at = this.now();
+      const packages = {};
+      if (eligible && !alreadySeen) {
+        for (const itemPackage of Object.values(this.state.itemPackages)) {
+          if (!itemPackage.enabled || !itemPackage.starterEnabled) continue;
+          packages[itemPackage.id] = { revision: itemPackage.revision, itemStates: itemPackage.items.map(() => 'pending') };
+        }
+      }
+      const grant = { eligible: eligible && !alreadySeen, observedAt: at, packages };
+      const seenPlayers = alreadySeen ? this.state.seenPlayers : {
+        ...this.state.seenPlayers,
+        [key]: { firstSeenAt: at, displayName: normalizedDisplayName },
+      };
+      const starterPackageGrants = { ...this.state.starterPackageGrants, [key]: grant };
+      await this.commitMutation({ ...this.state, seenPlayers, starterPackageGrants });
+      return { firstSeen: !alreadySeen, grant: structuredClone(grant) };
+    });
+  }
+
+  getStarterPackageGrant(eosId) {
+    const key = String(eosId ?? '').trim().toLocaleLowerCase('en-US');
+    const grant = this.state.starterPackageGrants[key];
+    return grant ? structuredClone(grant) : null;
+  }
+
+  async claimStarterPackageItem(eosId, packageId, packageRevision, itemIndex) {
+    const key = String(eosId ?? '').trim().toLocaleLowerCase('en-US'); const id = cleanItemPackageId(packageId);
+    if (!Number.isSafeInteger(packageRevision) || packageRevision < 1
+      || !Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= 50) return false;
+    return this.enqueueMutation(async () => {
+      const grant = this.state.starterPackageGrants[key]; const packageGrant = grant?.packages?.[id];
+      if (!grant?.eligible || packageGrant?.revision !== packageRevision || packageGrant.itemStates[itemIndex] !== 'pending') return false;
+      const itemStates = [...packageGrant.itemStates]; itemStates[itemIndex] = 'attempted';
+      const nextGrant = { ...grant, packages: { ...grant.packages, [id]: { ...packageGrant, itemStates } } };
+      await this.commitMutation({
+        ...this.state,
+        starterPackageGrants: { ...this.state.starterPackageGrants, [key]: nextGrant },
+      });
+      return true;
+    });
+  }
+
+  async completeStarterPackageItem(eosId, packageId, packageRevision, itemIndex) {
+    const key = String(eosId ?? '').trim().toLocaleLowerCase('en-US'); const id = cleanItemPackageId(packageId);
+    return this.enqueueMutation(async () => {
+      const grant = this.state.starterPackageGrants[key]; const packageGrant = grant?.packages?.[id];
+      if (!grant?.eligible || packageGrant?.revision !== packageRevision || packageGrant.itemStates[itemIndex] !== 'attempted') return false;
+      const itemStates = [...packageGrant.itemStates]; itemStates[itemIndex] = 'succeeded';
+      const nextGrant = { ...grant, packages: { ...grant.packages, [id]: { ...packageGrant, itemStates } } };
+      await this.commitMutation({
+        ...this.state,
+        starterPackageGrants: { ...this.state.starterPackageGrants, [key]: nextGrant },
+      });
+      return true;
+    });
+  }
+
+  async skipStarterPackage(eosId, packageId, packageRevision) {
+    const key = String(eosId ?? '').trim().toLocaleLowerCase('en-US'); const id = cleanItemPackageId(packageId);
+    return this.enqueueMutation(async () => {
+      const grant = this.state.starterPackageGrants[key]; const packageGrant = grant?.packages?.[id];
+      if (!grant?.eligible || packageGrant?.revision !== packageRevision) return false;
+      const itemStates = packageGrant.itemStates.map((status) => status === 'pending' ? 'skipped' : status);
+      if (itemStates.every((status, index) => status === packageGrant.itemStates[index])) return false;
+      const nextGrant = { ...grant, packages: { ...grant.packages, [id]: { ...packageGrant, itemStates } } };
+      await this.commitMutation({
+        ...this.state,
+        starterPackageGrants: { ...this.state.starterPackageGrants, [key]: nextGrant },
+      });
+      return true;
+    });
   }
 }

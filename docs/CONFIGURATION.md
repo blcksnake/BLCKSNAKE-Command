@@ -49,6 +49,8 @@ The Activity page identifies the username and role that executed each dashboard 
 
 New operators receive a temporary password that must be changed at first sign-in.
 
+Shared item packages are managed under **Settings → Item packages** and take effect without an application restart. Only administrators can create, edit, delete, enable, or mark up to 64 packages for first-join delivery. Moderators with **Give Items** permission can manually grant any enabled package. More than one package may be enabled for automatic delivery; the enabled set is captured when an eligible player first joins and is never expanded retroactively. Eligibility is cluster-wide, so moving to another map does not grant the packages again. Players already known before the feature is enabled and players present in the first snapshot after startup are not treated as new. Automatic grants wait for a verified numeric PlayerDataID. Each item is durably marked before its RCON command is sent, preventing an ambiguous response or restart from automatically duplicating the grant.
+
 ## Optional product analytics
 
 Product analytics is disabled by default. An Administrator can enable or disable it from **Settings → Analytics**, then select **Review & apply** to save the choice. Enabling it sends an initial contact immediately; disabling it stops future analytics immediately.

@@ -4,6 +4,9 @@ import {
 } from '../core/announcement-policy.js';
 import { getItem, searchItems } from '../core/item-catalog.js';
 import {
+  ITEM_PACKAGE_ID_PATTERN, normalizeItemPackageInput, publicItemPackage,
+} from '../core/item-packages.js';
+import {
   OperatorPasswordService, generateTemporaryPassword, normalizeOperatorRole, normalizeOperatorUsername,
   validateOperatorPassword,
 } from '../core/operator-credentials.js';
@@ -44,6 +47,7 @@ const ACTIONS = Object.freeze([
   { id: 'restart', minimumLevel: PermissionLevel.MODERATOR, label: 'Schedule restart window', group: 'Maintenance', risk: 'medium', server: 'optional', description: 'Send countdown warnings and save at the deadline; the host process is not restarted.' },
   { id: 'cancel-restart', minimumLevel: PermissionLevel.MODERATOR, label: 'Cancel restart window', group: 'Maintenance', risk: 'low', server: 'optional', description: 'Cancel the selected map or cluster restart schedule.' },
   { id: 'give-item', minimumLevel: PermissionLevel.ADMIN, label: 'Give item', group: 'Player', risk: 'medium', player: true, description: 'Grant a trusted built-in catalog item to a connected player.' },
+  { id: 'give-package', minimumLevel: PermissionLevel.ADMIN, accessGrant: 'give-item', label: 'Give package', group: 'Player', risk: 'medium', player: true, description: 'Grant every item in an enabled shared package to a connected player.' },
   { id: 'give-xp', minimumLevel: PermissionLevel.ADMIN, label: 'Give XP', group: 'Player', risk: 'medium', player: true, description: 'Grant experience to a connected player.' },
   { id: 'refresh-player-id', minimumLevel: PermissionLevel.ADMIN, label: 'Refresh targeting ID', group: 'Player', risk: 'low', player: true, description: 'Re-read and verify the player profile through the map SFTP source.' },
   { id: 'player', minimumLevel: PermissionLevel.MODERATOR, label: 'Player details', group: 'Player', risk: 'low', player: true, description: 'View protected moderation and targeting details.' },
@@ -62,7 +66,7 @@ const ACTIONS = Object.freeze([
 const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
 const PLAYER_PURPOSES = new Set(ACTIONS.filter((action) => action.player).map((action) => action.id));
 const UNCERTAIN_ON_FAILURE = new Set([
-  'announce', 'announce-template', 'save-world', 'restart', 'cancel-restart', 'give-item', 'give-xp',
+  'announce', 'announce-template', 'save-world', 'restart', 'cancel-restart', 'give-item', 'give-package', 'give-xp',
   'warn', 'note', 'mute-player', 'unmute-player', 'kick', 'ban', 'whitelist', 'unwhitelist', 'destroy-wild-dinos', 'rcon',
 ]);
 
@@ -101,8 +105,12 @@ export function deriveOwnerSetupProof(adminToken) {
   return crypto.createHmac('sha256', token).update(OWNER_SETUP_PROOF_CONTEXT, 'utf8').digest('base64url');
 }
 function publicAction(action) {
-  const { minimumLevel, ...safe } = action;
+  const { minimumLevel, accessGrant: _accessGrant, ...safe } = action;
   return { ...safe, minimumRole: roleForPermissionLevel(minimumLevel) };
+}
+function actionAccessGrant(action) { return action.accessGrant ?? action.id; }
+function sessionCanUseAction(session, action) {
+  return session.permissionLevel >= action.minimumLevel || hasOperatorActionGrant(session, actionAccessGrant(action));
 }
 function exactObject(value, allowed, message = 'Request body contains unsupported fields.') {
   if (!isRecord(value)) fail(400, 'invalid_input', 'Request body must be a JSON object.');
@@ -198,6 +206,11 @@ function itemSelection(value) {
   }
   return value;
 }
+function packageSelection(value) {
+  const id = String(value ?? '').trim();
+  if (!ITEM_PACKAGE_ID_PATTERN.test(id)) fail(400, 'invalid_package', 'Choose an enabled item package.');
+  return id;
+}
 function optionsRecord(value) {
   if (!isRecord(value)) fail(400, 'invalid_input', 'Action options must be a JSON object.');
   return value;
@@ -236,6 +249,9 @@ export function normalizeAdminAction(action, rawOptions, config = {}) {
       rejectUnknown(options, ['player', 'item', 'quantity', 'quality', 'blueprint']); output.player = playerSelection(options.player);
       output.item = itemSelection(options.item); output.quantity = integer(options.quantity, 'Quantity', 1, 10_000, 1);
       output.quality = finiteNumber(options.quality, 'Quality', 0, 100, 0); output.blueprint = booleanValue(options.blueprint, 'Blueprint'); break;
+    case 'give-package':
+      rejectUnknown(options, ['player', 'package']); output.player = playerSelection(options.player);
+      output.package = packageSelection(options.package); break;
     case 'give-xp':
       rejectUnknown(options, ['player', 'amount', 'from-tribe', 'share-with-tribe']); output.player = playerSelection(options.player);
       output.amount = finiteNumber(options.amount, 'XP amount', 1, 1_000_000_000);
@@ -481,7 +497,7 @@ export class AdminApi {
 
   assertActionAllowed(session, definition) {
     this.requireCurrentPassword(session);
-    if (session.permissionLevel < definition.minimumLevel && !hasOperatorActionGrant(session, definition.id)) {
+    if (!sessionCanUseAction(session, definition)) {
       this.security('access.role_rejected', { action: definition.id, outcome: 'denied', reasonCode: 'insufficient_role' });
       fail(403, 'action_forbidden', 'Your operator role cannot use that action.');
     }
@@ -731,20 +747,27 @@ export class AdminApi {
       name: safeSnippet(name, this.config.redactionSecrets, 64),
       message: safeSnippet(message, this.config.redactionSecrets, announcementMaxLength),
     }));
-    const allowedActions = ACTIONS.filter((action) => session.permissionLevel >= action.minimumLevel
-      || hasOperatorActionGrant(session, action.id));
+    const allowedActions = ACTIONS.filter((action) => sessionCanUseAction(session, action));
     const rawRcon = (session.permissionLevel >= PermissionLevel.ADMIN || hasOperatorActionGrant(session, 'rcon'))
       && Boolean(this.config.moderation?.allowRawRcon);
+    const packages = (this.state.listItemPackages?.({ includeDisabled: session.permissionLevel >= PermissionLevel.ADMIN }) ?? [])
+      .filter((itemPackage) => itemPackage.enabled || session.permissionLevel >= PermissionLevel.ADMIN)
+      .map(publicItemPackage);
+    const hasEnabledPackage = packages.some((itemPackage) => itemPackage.enabled);
     return {
       session: publicSession,
       status,
       capabilities: {
-        actions: allowedActions.map((action) => ({ ...publicAction(action), name: action.id, enabled: action.id !== 'rcon' || rawRcon })),
+        actions: allowedActions.map((action) => ({
+          ...publicAction(action), name: action.id,
+          enabled: action.id === 'rcon' ? rawRcon : action.id === 'give-package' ? hasEnabledPackage : true,
+        })),
         rawRcon: {
           enabled: rawRcon,
           verbs: rawRcon ? [...(this.config.moderation.rawRconAllowlist ?? [])] : [],
         },
         templates,
+        packages,
         announcementMaxLength,
         restartReasonMaxLength: restartReasonMaximum,
         defaultMuteMinutes: this.config.moderation?.defaultMuteMinutes ?? 15,
@@ -947,6 +970,76 @@ export class AdminApi {
       key: item.key, name: item.name, category: item.category, gfi: item.gfi,
       itemNumber: item.itemNumber, blueprintPath: item.blueprintPath,
     })) };
+  }
+
+  createPackage(request, body) {
+    const session = this.requireAdmin(request);
+    if (this.logger?.healthy === false) fail(503, 'audit_unavailable', 'Audit logging is unavailable; the package was not created.');
+    let input;
+    try { input = normalizeItemPackageInput(body); }
+    catch (error) { fail(400, 'invalid_package', error.message); }
+    if (!this.audit('item_package.create_started', { principalId: session.accountId, outcome: 'started' })) {
+      fail(503, 'audit_unavailable', 'Audit logging is unavailable; the package was not created.');
+    }
+    return this.state.createItemPackage(input).then((saved) => {
+      if (!this.audit('item_package.created', {
+        principalId: session.accountId, packageId: saved.id, itemCount: saved.items.length,
+        starterEnabled: saved.starterEnabled, outcome: 'succeeded',
+      })) failCommittedMutation('package_create_committed_audit_failed', 'The package was created, but audit confirmation failed. Refresh before making another change.');
+      return { body: { package: publicItemPackage(saved) } };
+    }).catch((error) => {
+      if (error instanceof AdminApiError) throw error;
+      this.audit('item_package.create_failed', { principalId: session.accountId, outcome: 'failed' });
+      fail(409, 'package_create_failed', error.message);
+    });
+  }
+
+  updatePackage(request, packageId, body) {
+    const session = this.requireAdmin(request);
+    if (this.logger?.healthy === false) fail(503, 'audit_unavailable', 'Audit logging is unavailable; the package was not changed.');
+    if (!isRecord(body)) fail(400, 'invalid_package', 'Package update must be an object.');
+    const expectedRevision = integer(body.expectedRevision, 'Expected revision', 1, Number.MAX_SAFE_INTEGER);
+    let input;
+    try {
+      const { expectedRevision: _expectedRevision, ...candidate } = body;
+      input = normalizeItemPackageInput(candidate);
+    } catch (error) { fail(400, 'invalid_package', error.message); }
+    if (!this.audit('item_package.update_started', { principalId: session.accountId, packageId, outcome: 'started' })) {
+      fail(503, 'audit_unavailable', 'Audit logging is unavailable; the package was not changed.');
+    }
+    return this.state.updateItemPackage(packageId, input, { expectedRevision }).then((saved) => {
+      if (!this.audit('item_package.updated', {
+        principalId: session.accountId, packageId: saved.id, revision: saved.revision,
+        itemCount: saved.items.length, starterEnabled: saved.starterEnabled, outcome: 'succeeded',
+      })) failCommittedMutation('package_update_committed_audit_failed', 'The package was changed, but audit confirmation failed. Refresh before making another change.');
+      return { body: { package: publicItemPackage(saved) } };
+    }).catch((error) => {
+      if (error instanceof AdminApiError) throw error;
+      this.audit('item_package.update_failed', { principalId: session.accountId, packageId, outcome: 'failed' });
+      fail(409, 'package_update_failed', error.message);
+    });
+  }
+
+  deletePackage(request, packageId, body) {
+    const session = this.requireAdmin(request);
+    if (this.logger?.healthy === false) fail(503, 'audit_unavailable', 'Audit logging is unavailable; the package was not deleted.');
+    if (!isRecord(body)) fail(400, 'invalid_package', 'Package deletion must be an object.');
+    exactObject(body, ['expectedRevision']);
+    const expectedRevision = integer(body.expectedRevision, 'Expected revision', 1, Number.MAX_SAFE_INTEGER);
+    if (!this.audit('item_package.delete_started', { principalId: session.accountId, packageId, outcome: 'started' })) {
+      fail(503, 'audit_unavailable', 'Audit logging is unavailable; the package was not deleted.');
+    }
+    return this.state.deleteItemPackage(packageId, { expectedRevision }).then((removed) => {
+      if (!removed) fail(404, 'package_not_found', 'That item package does not exist.');
+      if (!this.audit('item_package.deleted', { principalId: session.accountId, packageId, outcome: 'succeeded' })) {
+        failCommittedMutation('package_delete_committed_audit_failed', 'The package was deleted, but audit confirmation failed. Refresh before making another change.');
+      }
+      return { body: { ok: true } };
+    }).catch((error) => {
+      if (error instanceof AdminApiError) throw error;
+      this.audit('item_package.delete_failed', { principalId: session.accountId, packageId, outcome: 'failed' });
+      fail(409, 'package_delete_failed', error.message);
+    });
   }
 
   activityLog(request) {
@@ -1343,6 +1436,16 @@ export class AdminApi {
     return server ? `${safeSnippet(server.name, this.config.redactionSecrets, 64)} (${server.id})` : serverId;
   }
 
+  normalizeActionRequest(body) {
+    const normalized = normalizeAdminAction(body.action, body.options, this.config);
+    if (normalized.action === 'give-package') {
+      const itemPackage = this.state.getItemPackage?.(normalized.options.package);
+      if (!itemPackage?.enabled) fail(409, 'package_unavailable', 'That item package is disabled, missing, or changed. Refresh and choose it again.');
+      normalized.options.packageRevision = itemPackage.revision;
+    }
+    return normalized;
+  }
+
   actionSummary(session, action, options) {
     const player = options.player ? this.sessions.get(session.key)?.playerSelections.get(options.player) : null;
     if (options.player && !player) fail(400, 'invalid_player_selection', 'Refresh the connected-player list and choose the player again.');
@@ -1356,6 +1459,13 @@ export class AdminApi {
       case 'restart': return `Schedule a ${options.minutes}-minute save/restart window for ${server}; host restart remains manual`;
       case 'cancel-restart': return `Cancel the restart window for ${server}`;
       case 'give-item': return `Give ${options.quantity}x ${item?.name ?? 'catalog item'}${options.blueprint ? ' blueprint' : ''} to ${playerLabel}`;
+      case 'give-package': {
+        const itemPackage = this.state.getItemPackage?.(options.package);
+        if (!itemPackage?.enabled || itemPackage.revision !== options.packageRevision) {
+          fail(409, 'package_changed', 'That item package changed. Refresh and review it again.');
+        }
+        return `Give package ${safeSnippet(itemPackage.name, this.config.redactionSecrets, 64)} (${itemPackage.items.length} item types) to ${playerLabel}`;
+      }
       case 'give-xp': return `Give ${options.amount} XP to ${playerLabel}`;
       case 'refresh-player-id': return `Verify the protected targeting ID for ${playerLabel}`;
       case 'player': return `View protected staff details for ${playerLabel}`;
@@ -1381,7 +1491,7 @@ export class AdminApi {
     if (!isRecord(body)) fail(400, 'invalid_input', 'Request body must be a JSON object.');
     const requestedDefinition = ACTION_BY_ID.get(String(body.action ?? '').trim());
     if (requestedDefinition) this.assertActionAllowed(session, requestedDefinition);
-    const normalized = normalizeAdminAction(body.action, body.options, this.config);
+    const normalized = this.normalizeActionRequest(body);
     const summary = this.actionSummary(session, normalized.action, normalized.options);
     const token = randomToken(this.randomBytes, 24); const key = digest(token); const expiresAt = this.now() + CONFIRMATION_TTL_MS;
     const challenge = normalized.definition.challenge ? `WIPE ${normalized.options.server}` : '';
@@ -1411,7 +1521,7 @@ export class AdminApi {
     if (!isRecord(body)) fail(400, 'invalid_input', 'Request body must be a JSON object.');
     const requestedDefinition = ACTION_BY_ID.get(String(body.action ?? '').trim());
     if (requestedDefinition) this.assertActionAllowed(session, requestedDefinition);
-    const normalized = normalizeAdminAction(body.action, body.options, this.config);
+    const normalized = this.normalizeActionRequest(body);
     if (this.logger?.healthy === false) fail(503, 'audit_unavailable', 'Security audit logging is unavailable; privileged actions are temporarily disabled.');
     const payloadHash = actionPayloadHash(normalized.action, normalized.options); const idempotencyKey = this.requireIdempotency(request);
     const cacheKey = `${session.key}\u001f${idempotencyKey}`; this.prune(); const cached = this.idempotency.get(cacheKey);

@@ -129,6 +129,7 @@ export class ClusterBridge {
       limit: config.moderation.messageBurst, windowMs: config.moderation.messageWindowSeconds * 1_000, now,
     });
     this.filter = new ContentFilter(config.moderation); this.boundServerHandlers = new Map(); this.sessionStarts = new Map();
+    this.initialPlayerSnapshots = new Set(); this.pendingStarterDeliveries = new Map();
     this.playerChoiceTokens = new Map(); this.playerChoiceTokensByTarget = new Map(); this.randomBytesFn = randomBytesFn;
     this.setIntervalFn = setIntervalFn; this.clearIntervalFn = clearIntervalFn; this.restartTimer = null; this.scheduledRestarts = new Map();
     this.stopPromise = null;
@@ -201,7 +202,7 @@ export class ClusterBridge {
       if (handlers) { server.off('chat', handlers.onChat); server.off('pollError', handlers.onPollError); server.off('playerJoined', handlers.onPlayerJoined); server.off('playerLeft', handlers.onPlayerLeft); server.off('players', handlers.onPlayers); server.off('connected', handlers.onConnected); server.off('disconnected', handlers.onDisconnected); }
       server.stopPolling();
     }
-    this.boundServerHandlers.clear(); this.pendingProfileImports.clear();
+    this.boundServerHandlers.clear(); this.pendingProfileImports.clear(); this.initialPlayerSnapshots.clear(); this.pendingStarterDeliveries.clear();
     this.playerChoiceTokens.clear(); this.playerChoiceTokensByTarget.clear();
     this.clearIntervalFn(this.restartTimer); this.restartTimer = null; this.scheduledRestarts.clear();
     if (this.discord) {
@@ -406,9 +407,14 @@ export class ClusterBridge {
   }
 
   async handlePlayerSnapshot(server, players = server.players ?? []) {
-    const startedAt = this.now();
-    for (const player of players) this.startPlayerSession(server, player, startedAt);
+    const startedAt = this.now(); const initialSnapshot = !this.initialPlayerSnapshots.has(server.id);
+    this.initialPlayerSnapshots.add(server.id);
+    for (const player of players) {
+      this.startPlayerSession(server, player, startedAt);
+      await this.observePlayerForStarterPackages(player, { eligible: !initialSnapshot, welcome: false });
+    }
     await this.syncPlayerProfiles(server, players);
+    for (const player of players) await this.deliverStarterPackages(server, player);
   }
 
   formatTemplate(template, vars) {
@@ -431,10 +437,94 @@ export class ClusterBridge {
       this.profileValidatedAt.delete(key); this.profileFailuresAt.delete(key); this.profileFailureDetails.delete(key);
     }
     this.startPlayerSession(server, player);
-    const firstSeen = player.id ? this.state.isFirstSeen?.(player.id) : false;
-    if (player.id) await this.state.markSeen?.(player.id, player.name);
-    if (firstSeen) await this.sendWelcome(server, player);
+    await this.observePlayerForStarterPackages(player, { eligible: true, welcome: true, server });
     await this.handlePlayerPresence(server, player, 'joined');
+  }
+
+  async observePlayerForStarterPackages(player, { eligible, welcome, server } = {}) {
+    const eosId = String(player?.id ?? '').trim(); let firstSeen = false;
+    if (eosId && typeof this.state.observePlayerForStarterPackages === 'function') {
+      const observation = await this.state.observePlayerForStarterPackages(eosId, player.name, { eligible });
+      if (observation?.grant) firstSeen = Boolean(observation.firstSeen);
+      else {
+        firstSeen = Boolean(this.state.isFirstSeen?.(eosId));
+        await this.state.markSeen?.(eosId, player.name);
+      }
+    } else if (eosId) {
+      firstSeen = Boolean(this.state.isFirstSeen?.(eosId));
+      await this.state.markSeen?.(eosId, player.name);
+    }
+    if (welcome && firstSeen && server) await this.sendWelcome(server, player);
+    return firstSeen;
+  }
+
+  async sendPackageItem(server, playerDataId, entry) {
+    const item = getItem(entry.itemKey);
+    if (!item) throw new Error('The package contains an unavailable catalog item.');
+    if (item.blueprintPath) {
+      await server.giveItemToPlayer(playerDataId, item.blueprintPath, entry.quantity, entry.quality, entry.blueprint);
+    } else if (item.itemNumber != null) {
+      await server.giveItemNumToPlayer(playerDataId, item.itemNumber, entry.quantity, entry.quality, entry.blueprint);
+    } else throw new Error('The package contains an item without a usable grant identifier.');
+    return item;
+  }
+
+  deliverStarterPackages(server, player) {
+    const eosId = String(player?.id ?? '').trim().toLocaleLowerCase('en-US');
+    if (!/^[a-f0-9]{32}$/u.test(eosId) || typeof this.state.getStarterPackageGrant !== 'function') return Promise.resolve();
+    const key = `${server.id}:${eosId}`;
+    if (this.pendingStarterDeliveries.has(key)) return this.pendingStarterDeliveries.get(key);
+    const operation = (async () => {
+      const grant = this.state.getStarterPackageGrant(eosId);
+      if (!grant?.eligible) return;
+      const mapping = this.profileMapping(server, player); const playerDataId = mapping?.playerDataId;
+      if (!playerDataId) return;
+      for (const [packageId, packageGrant] of Object.entries(grant.packages ?? {})) {
+        if (!packageGrant.itemStates?.includes('pending')) continue;
+        const itemPackage = this.state.getItemPackage?.(packageId);
+        if (!itemPackage || itemPackage.revision !== packageGrant.revision) {
+          await this.state.skipStarterPackage?.(eosId, packageId, packageGrant.revision);
+          this.logger?.warn?.('Starter package changed before delivery and was not sent automatically', {
+            event: 'starter_package.revision_changed', component: 'bridge', server: server.id,
+            packageId, outcome: 'skipped', reasonCode: 'package_changed',
+          });
+          continue;
+        }
+        for (let index = 0; index < itemPackage.items.length; index += 1) {
+          if (packageGrant.itemStates[index] !== 'pending') continue;
+          if (this.logger?.healthy === false || this.logger?.audit?.('starter_package.item_started', {
+            component: 'bridge', server: server.id, packageId, packageRevision: itemPackage.revision,
+            itemIndex: index, outcome: 'started',
+          }) === false) return;
+          const claimed = await this.state.claimStarterPackageItem?.(eosId, packageId, itemPackage.revision, index);
+          if (!claimed) continue;
+          try {
+            await this.sendPackageItem(server, playerDataId, itemPackage.items[index]);
+            await this.state.completeStarterPackageItem?.(eosId, packageId, itemPackage.revision, index);
+            this.logger?.audit?.('starter_package.item_succeeded', {
+              component: 'bridge', server: server.id, packageId, packageRevision: itemPackage.revision,
+              itemIndex: index, outcome: 'succeeded',
+            });
+            this.metrics.increment('starter_package_items_total', { server: server.id, result: 'succeeded' });
+          } catch (error) {
+            // The RCON response can be lost after the server applies a grant.
+            // The durable pre-send claim intentionally prevents an automatic retry.
+            this.metrics.increment('starter_package_items_total', { server: server.id, result: 'uncertain' });
+            this.logger?.warn?.('Automatic starter package item outcome is uncertain', {
+              event: 'starter_package.item_uncertain', component: 'bridge', server: server.id,
+              packageId, outcome: 'uncertain', reasonCode: error?.code ?? error?.name ?? 'grant_failed',
+            });
+            this.logger?.audit?.('starter_package.item_uncertain', {
+              component: 'bridge', server: server.id, packageId, packageRevision: itemPackage.revision,
+              itemIndex: index, outcome: 'uncertain', reasonCode: error?.code ?? error?.name ?? 'grant_failed',
+            });
+            break;
+          }
+        }
+      }
+    })();
+    this.pendingStarterDeliveries.set(key, operation);
+    return operation.finally(() => { if (this.pendingStarterDeliveries.get(key) === operation) this.pendingStarterDeliveries.delete(key); });
   }
 
   async handlePlayerLeave(server, player) {
@@ -940,7 +1030,7 @@ export class ClusterBridge {
   }
 
   playerChoices(query, command, discordUserId) {
-    const grants = command === 'give-item' || command === 'give-xp' || command === 'give-item-preset';
+    const grants = command === 'give-item' || command === 'give-package' || command === 'give-xp' || command === 'give-item-preset';
     const choices = [];
     for (const server of this.servers) for (const player of server.players ?? []) {
       const mapping = this.profileMapping(server, player); const mapped = mapping?.playerDataId;
@@ -991,7 +1081,7 @@ export class ClusterBridge {
     const userId = String(principalId ?? '').trim();
     if (!userId) throw new Error('An authenticated principal is required for player selections.');
     const maximum = Math.min(100, Math.max(1, Number.isSafeInteger(limit) ? limit : 100));
-    const grants = ['give-item', 'give-xp', 'give-item-preset'].includes(String(purpose));
+    const grants = ['give-item', 'give-package', 'give-xp', 'give-item-preset'].includes(String(purpose));
     const choices = [];
     for (const server of this.servers) for (const player of server.players ?? []) {
       const mapping = this.profileMapping(server, player); const source = this.profileSource(server);
@@ -1300,6 +1390,10 @@ export class ClusterBridge {
       requireLevel(PermissionLevel.ADMIN);
       return this.executeItemGrant(options, actor, user.id);
     }
+    if (command === 'give-package') {
+      requireLevel(PermissionLevel.ADMIN);
+      return this.executePackageGrant(options, actor, user.id);
+    }
     if (command === 'give-item-num') {
       requireLevel(PermissionLevel.ADMIN);
       const server = this.resolveRequiredServer(options.server);
@@ -1551,6 +1645,27 @@ export class ClusterBridge {
       }
     }
     return `Gave ${quantity}x ${itemLabel}${item?.itemNumber != null ? ` (#${item.itemNumber})` : ''} to ${target.player?.name ?? 'the manually selected player'} on ${target.server.name}${forceBlueprint ? ' as a blueprint' : ''}.`;
+  }
+
+  async executePackageGrant(options, actor, principalId) {
+    const itemPackage = this.state.getItemPackage?.(options.package);
+    if (!itemPackage?.enabled || itemPackage.revision !== options.packageRevision) {
+      throw new Error('That item package is disabled, missing, or changed. Refresh and review it again.');
+    }
+    let target = await this.resolveGrantTarget(options, principalId);
+    target = await this.confirmGrantTargetOnline(target);
+    let completed = 0;
+    for (const entry of itemPackage.items) {
+      try {
+        await this.sendPackageItem(target.server, target.playerDataId, entry);
+        completed += 1;
+      } catch (error) {
+        const failure = new Error(`Package ${itemPackage.name} stopped after ${completed} of ${itemPackage.items.length} item types. The latest grant outcome may be uncertain; do not resend the whole package. Grant any known missing items individually.`);
+        failure.cause = error; failure.operationOutcome = 'uncertain'; throw failure;
+      }
+    }
+    await this.audit(`GIVEPACKAGE target=${target.player?.name ?? 'manual'} package=${itemPackage.id} revision=${itemPackage.revision} on ${target.server.id} by ${actor} items=${itemPackage.items.length}`);
+    return `Gave ${itemPackage.name} (${itemPackage.items.length} item types) to ${target.player?.name ?? 'the selected player'} on ${target.server.name}.`;
   }
 
   async resolveGrantTarget(options, discordUserId) {

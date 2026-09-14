@@ -1,7 +1,7 @@
 FROM node:22-alpine
 LABEL org.opencontainers.image.title="BLCKSNAKE Command" \
       org.opencontainers.image.description="ARK: Survival Ascended server and cluster administration" \
-      org.opencontainers.image.version="1.1.1" \
+      org.opencontainers.image.version="1.2.0" \
       org.opencontainers.image.source="https://github.com/blcksnake/BLCKSNAKE-Command" \
       org.opencontainers.image.licenses="MIT"
 WORKDIR /app

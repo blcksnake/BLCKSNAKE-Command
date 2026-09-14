@@ -198,6 +198,7 @@ export const DASHBOARD_HTML = `<!doctype html>
               <div class="group-heading"><span class="group-icon" aria-hidden="true">GR</span><div><h3>Player grants</h3></div></div>
               <div class="action-grid">
                 <button class="action-card" type="button" data-open-action="give-item"><strong>Give item</strong><span>Search the item catalog or use a favorite.</span></button>
+                <button class="action-card" type="button" data-open-action="give-package"><strong>Give package</strong><span>Grant a shared item bundle to one player.</span></button>
                 <button class="action-card" type="button" data-open-action="give-xp"><strong>Give XP</strong><span>Grant experience to a player or tribe.</span></button>
                 <button class="action-card" type="button" data-open-action="refresh-player-id"><strong>Verify targeting</strong><span>Refresh a player's profile ID.</span></button>
               </div>
@@ -311,6 +312,7 @@ export const DASHBOARD_HTML = `<!doctype html>
                 <button type="button" data-settings-jump="settings-discord">Discord</button>
                 <button type="button" data-settings-jump="settings-analytics">Analytics</button>
                 <button type="button" data-settings-jump="settings-templates">Broadcast templates</button>
+                <button type="button" data-settings-jump="settings-packages">Item packages</button>
                 <button type="button" data-settings-jump="settings-security">Security</button>
                 <p class="settings-nav-note">Stored credentials are never returned to this page. Empty secret fields keep the current value.</p>
               </nav>
@@ -360,6 +362,11 @@ export const DASHBOARD_HTML = `<!doctype html>
                   <div class="settings-card-heading"><div><p class="eyebrow">Staff messages</p><h3 id="settings-templates-heading">Broadcast templates</h3><p>Create reusable announcements for the whole cluster or one map.</p></div><button class="secondary-button" id="settings-add-template" type="button">Add template</button></div>
                   <div class="settings-template-actions"><button class="quiet-button" id="settings-add-starter-templates" type="button">Add missing starter templates</button><span>Up to 32 templates. Changes activate after Apply &amp; restart.</span></div>
                   <div class="settings-template-list" id="settings-template-list" aria-live="polite"></div>
+                </section>
+
+                <section class="settings-card surface" id="settings-packages" aria-labelledby="settings-packages-heading">
+                  <div class="settings-card-heading"><div><p class="eyebrow">Shared grants</p><h3 id="settings-packages-heading">Item packages</h3><p>Build reusable starter, boss-fight, and event bundles. Changes take effect immediately.</p></div><button class="secondary-button" id="settings-add-package" type="button">Create package</button></div>
+                  <div class="settings-package-list" id="settings-package-list" aria-live="polite"><div class="settings-package-empty empty-copy">No item packages configured.</div></div>
                 </section>
 
                 <section class="settings-card surface" id="settings-security" aria-labelledby="settings-security-heading">
@@ -415,6 +422,28 @@ export const DASHBOARD_HTML = `<!doctype html>
       <div class="form-grid" id="action-fields"></div>
       <p class="form-error" id="action-error" role="alert" hidden></p>
       <footer class="dialog-footer"><button class="quiet-button close-dialog" type="button">Cancel</button><button class="primary-button" id="preview-button" type="submit">Review operation</button></footer>
+    </form>
+  </dialog>
+
+  <dialog class="action-dialog" id="item-package-dialog" aria-labelledby="item-package-title">
+    <form class="dialog-shell package-editor-shell" id="item-package-form" autocomplete="off">
+      <header class="dialog-header">
+        <div><p class="eyebrow">Administrator only</p><h2 id="item-package-title">Create item package</h2><p>Package entries use the trusted ASA item catalog.</p></div>
+        <button class="icon-button close-dialog" type="button" aria-label="Close item package editor">Close</button>
+      </header>
+      <input id="item-package-id" type="hidden"><input id="item-package-revision" type="hidden">
+      <div class="form-grid">
+        <label class="full" for="item-package-name"><span>Package name</span><input id="item-package-name" type="text" maxlength="64" required></label>
+        <label class="full" for="item-package-description"><span>Description</span><textarea id="item-package-description" maxlength="240" rows="2"></textarea></label>
+        <label class="checkbox-field"><input id="item-package-enabled" type="checkbox" checked><span>Available for staff grants</span></label>
+        <label class="checkbox-field"><input id="item-package-starter" type="checkbox"><span>Give once on first cluster join</span></label>
+      </div>
+      <section class="package-items-section" aria-labelledby="item-package-items-heading">
+        <div class="package-items-heading"><div><h3 id="item-package-items-heading">Package items</h3><p>Up to 50 item types per package.</p></div><button class="secondary-button" id="item-package-add-item" type="button">Add item</button></div>
+        <div class="package-item-list" id="item-package-items"></div>
+      </section>
+      <p class="form-error" id="item-package-error" role="alert" hidden></p>
+      <footer class="dialog-footer"><button class="danger-button" id="item-package-delete" type="button" hidden>Delete package</button><span class="dialog-footer-spacer"></span><button class="quiet-button close-dialog" type="button">Cancel</button><button class="primary-button" id="item-package-save" type="submit">Save package</button></footer>
     </form>
   </dialog>
 

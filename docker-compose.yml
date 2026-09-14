@@ -2,7 +2,7 @@ name: blcksnake-command
 
 services:
   app:
-    image: blcksnake/blcksnake-command:1.1.1
+    image: blcksnake/blcksnake-command:1.2.0
     restart: unless-stopped
     init: true
     read_only: true

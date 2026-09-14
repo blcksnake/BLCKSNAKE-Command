@@ -71,6 +71,7 @@
     staffRecordController: null,
     playerSearchTimer: null,
     itemSearchTimer: null,
+    itemComboboxSequence: 0,
     diagnosticSearchTimer: null,
     selectedPlayer: null,
     currentAction: null,
@@ -401,6 +402,12 @@
       return Object.keys(source).map(function (name) { return { value: name, label: name }; });
     }
     return [];
+  }
+
+  function itemPackages() {
+    return Array.isArray(state.capabilities.packages) ? state.capabilities.packages.filter(function (itemPackage) {
+      return itemPackage && typeof itemPackage.id === 'string' && Array.isArray(itemPackage.items);
+    }) : [];
   }
 
   function configureAuthentication(message) {
@@ -812,6 +819,7 @@
     renderServerChoices();
     renderStatus();
     renderCapabilities();
+    renderSettingsPackages();
   }
 
   function renderOperatorIdentity() {
@@ -1086,7 +1094,7 @@
       head.append(title, element('span', 'state-badge ' + (server.connected ? 'good' : 'bad'), server.connected ? 'Online' : 'Offline'));
 
       var stat = element('div', 'map-player-stat');
-      var playerCount = element('div');
+      var playerCount = element('div', 'map-player-count');
       var connectedPlayers = numeric(server.playerCount);
       playerCount.append(
         element('strong', '', String(connectedPlayers)),
@@ -1678,6 +1686,7 @@
     var actions = [
       ['player', 'Staff record', 'Status, notes, and protected data', 'SR'],
       ['give-item', 'Give item', 'Catalog item or blueprint', 'IT'],
+      ['give-package', 'Give package', 'Shared item bundle', 'PK'],
       ['give-xp', 'Give XP', 'Grant bounded experience', 'XP'],
       ['refresh-player-id', 'Verify targeting', 'Refresh numeric targeting', 'TG'],
       ['warn', 'Warn', 'Send a private staff warning', 'WN'],
@@ -2807,6 +2816,141 @@
     toast(added ? plural(added, 'starter template') + ' added. Review and apply to save.' : 'All starter templates are already present.', added ? 'good' : 'warn');
   }
 
+  function renderSettingsPackages() {
+    var list = $('#settings-package-list');
+    if (!list) return;
+    var packages = itemPackages();
+    if (!packages.length) {
+      list.replaceChildren(element('div', 'settings-package-empty empty-copy', 'No item packages configured.'));
+      return;
+    }
+    var cards = packages.map(function (itemPackage) {
+      var card = element('article', 'settings-package-row');
+      var copy = element('div', 'settings-package-copy');
+      copy.append(element('strong', '', itemPackage.name));
+      copy.append(element('span', '', itemPackage.description || plural(itemPackage.items.length, 'item type')));
+      var badges = element('div', 'settings-package-badges');
+      badges.append(element('span', 'state-badge ' + (itemPackage.enabled ? 'good' : 'bad'), itemPackage.enabled ? 'Enabled' : 'Disabled'));
+      if (itemPackage.starterEnabled) badges.append(element('span', 'state-badge good', 'First join'));
+      badges.append(element('span', 'secondary-value', plural(itemPackage.items.length, 'item type')));
+      var edit = element('button', 'secondary-button', 'Edit');
+      edit.type = 'button'; edit.dataset.editPackage = itemPackage.id;
+      card.append(copy, badges, edit);
+      return card;
+    });
+    list.replaceChildren.apply(list, cards);
+  }
+
+  function packageItemRow(entry) {
+    var source = entry || {}; var row = element('div', 'package-item-row');
+    var itemLabel = itemFieldNode({
+      name: 'package-item', label: 'Catalog item', type: 'item', required: true,
+      full: true, placeholder: 'Search item name, GFI, or item number'
+    }, makeLabel({ label: 'Catalog item', full: true }));
+    var hidden = $('[data-option="package-item"]', itemLabel);
+    var search = $('input[role="combobox"]', itemLabel);
+    hidden.value = safeString(source.itemKey, 100);
+    search.value = safeString(source.name, 160);
+    if (hidden.value) search.setCustomValidity('');
+
+    function numberField(labelText, className, value, min, max, step) {
+      var label = element('label', className);
+      label.append(element('span', '', labelText));
+      var input = document.createElement('input'); input.type = 'number'; input.required = true;
+      input.min = String(min); input.max = String(max); input.step = step; input.value = String(value);
+      label.append(input); return label;
+    }
+    var quantity = numberField('Quantity', 'package-item-quantity', source.quantity || 1, 1, 10_000, '1');
+    var quality = numberField('Quality', 'package-item-quality', source.quality || 0, 0, 100, 'any');
+    var blueprint = element('label', 'checkbox-field package-item-blueprint');
+    var blueprintInput = document.createElement('input'); blueprintInput.type = 'checkbox'; blueprintInput.checked = Boolean(source.blueprint);
+    blueprint.append(blueprintInput, element('span', '', 'Blueprint'));
+    var remove = element('button', 'danger-quiet-button package-item-remove', 'Remove'); remove.type = 'button';
+    remove.addEventListener('click', function () { row.remove(); });
+    row.append(itemLabel, quantity, quality, blueprint, remove);
+    return row;
+  }
+
+  function openPackageEditor(itemPackage) {
+    var source = itemPackage || null; var dialog = $('#item-package-dialog');
+    $('#item-package-form').reset();
+    $('#item-package-id').value = source ? source.id : '';
+    $('#item-package-revision').value = source ? String(source.revision) : '';
+    $('#item-package-name').value = source ? source.name : '';
+    $('#item-package-description').value = source ? source.description : '';
+    $('#item-package-enabled').checked = source ? Boolean(source.enabled) : true;
+    $('#item-package-starter').checked = source ? Boolean(source.starterEnabled) : false;
+    $('#item-package-title').textContent = source ? 'Edit item package' : 'Create item package';
+    $('#item-package-delete').hidden = !source;
+    showFormError($('#item-package-error'), '');
+    var rows = (source ? source.items : [{}]).map(packageItemRow);
+    $('#item-package-items').replaceChildren.apply($('#item-package-items'), rows);
+    state.lastDialogTrigger = document.activeElement;
+    dialog.showModal();
+    $('#item-package-name').focus();
+  }
+
+  function updatePackageCapability(saved) {
+    var packages = itemPackages().filter(function (candidate) { return candidate.id !== saved.id; });
+    packages.push(saved); packages.sort(function (left, right) { return left.name.localeCompare(right.name); });
+    state.capabilities.packages = packages; renderSettingsPackages();
+  }
+
+  async function submitItemPackage(event) {
+    event.preventDefault(); var form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    var rows = $all('.package-item-row', $('#item-package-items'));
+    if (!rows.length) {
+      showFormError($('#item-package-error'), 'Add at least one item to the package.'); return;
+    }
+    var items = rows.map(function (row) {
+      return {
+        itemKey: $('[data-option="package-item"]', row).value,
+        quantity: Number($('.package-item-quantity input', row).value),
+        quality: Number($('.package-item-quality input', row).value),
+        blueprint: $('.package-item-blueprint input', row).checked
+      };
+    });
+    if (items.some(function (entry) { return !entry.itemKey; })) {
+      showFormError($('#item-package-error'), 'Choose every item from the trusted catalog results.'); return;
+    }
+    var id = $('#item-package-id').value; var body = {
+      name: $('#item-package-name').value.trim(),
+      description: $('#item-package-description').value.trim(),
+      enabled: $('#item-package-enabled').checked,
+      starterEnabled: $('#item-package-starter').checked,
+      items: items
+    };
+    if (id) body.expectedRevision = Number($('#item-package-revision').value);
+    var button = $('#item-package-save'); setBusy(button, true, 'Saving...');
+    showFormError($('#item-package-error'), '');
+    try {
+      var result = await api(id ? '/admin/api/packages/' + encodeURIComponent(id) : '/admin/api/packages', {
+        method: id ? 'PUT' : 'POST', csrf: true, body: body
+      });
+      if (!result || !result.package) throw incompleteMutationResponse('The package response was incomplete.');
+      updatePackageCapability(result.package); $('#item-package-dialog').close();
+      toast(id ? 'Item package updated.' : 'Item package created.', 'good');
+      await refreshBootstrap({ force: true, quiet: true });
+    } catch (error) { showFormError($('#item-package-error'), errorMessage(error)); }
+    finally { setBusy(button, false); }
+  }
+
+  async function deleteItemPackage() {
+    var id = $('#item-package-id').value; var revision = Number($('#item-package-revision').value);
+    if (!id || !window.confirm('Delete this item package? Existing first-join records will not be reassigned.')) return;
+    var button = $('#item-package-delete'); setBusy(button, true, 'Deleting...');
+    try {
+      await api('/admin/api/packages/' + encodeURIComponent(id), {
+        method: 'DELETE', csrf: true, body: { expectedRevision: revision }
+      });
+      state.capabilities.packages = itemPackages().filter(function (candidate) { return candidate.id !== id; });
+      renderSettingsPackages(); $('#item-package-dialog').close(); toast('Item package deleted.', 'good');
+      await refreshBootstrap({ force: true, quiet: true });
+    } catch (error) { showFormError($('#item-package-error'), errorMessage(error)); }
+    finally { setBusy(button, false); }
+  }
+
   function readSettingsTemplates() {
     var output = {};
     $all('[data-settings-template]', $('#settings-template-list')).forEach(function (row) {
@@ -3694,6 +3838,14 @@
           { name: 'blueprint', label: 'Give as blueprint', type: 'checkbox', full: true }
         ]
       },
+      'give-package': {
+        title: 'Give item package',
+        description: 'Give every item in an enabled shared package to a connected player.',
+        fields: [
+          { name: 'player', label: 'Connected player', type: 'player', required: true, full: true },
+          { name: 'package', label: 'Item package', type: 'package', required: true, full: true }
+        ]
+      },
       'give-xp': {
         title: 'Give experience',
         description: 'Grant bounded XP to a verified connected survivor.',
@@ -3861,6 +4013,15 @@
         return new Option(entry.label, entry.value);
       }));
       input.replaceChildren.apply(input, options);
+    } else if (field.type === 'package') {
+      input = document.createElement('select');
+      setCommonFieldAttributes(input, field);
+      var packageOptions = [new Option('Choose an enabled package', '')].concat(itemPackages().filter(function (itemPackage) {
+        return itemPackage.enabled;
+      }).map(function (itemPackage) {
+        return new Option(itemPackage.name + ' (' + plural(itemPackage.items.length, 'item type') + ')', itemPackage.id);
+      }));
+      input.replaceChildren.apply(input, packageOptions);
     } else if (field.type === 'select') {
       input = document.createElement('select');
       setCommonFieldAttributes(input, field);
@@ -3899,13 +4060,15 @@
     search.setAttribute('role', 'combobox');
     search.setAttribute('aria-autocomplete', 'list');
     search.setAttribute('aria-expanded', 'false');
-    search.setAttribute('aria-controls', 'item-combobox-results');
+    state.itemComboboxSequence += 1;
+    var resultsId = 'item-combobox-results-' + state.itemComboboxSequence;
+    search.setAttribute('aria-controls', resultsId);
     if (field.required) search.required = true;
     var hidden = document.createElement('input');
     hidden.type = 'hidden';
     hidden.dataset.option = field.name;
     var results = element('div', 'combobox-results');
-    results.id = 'item-combobox-results';
+    results.id = resultsId;
     results.setAttribute('role', 'listbox');
     results.hidden = true;
     label.append(search, hidden, results);
@@ -4413,6 +4576,23 @@
       if (row) $('[data-template-field="name"]', row).focus();
     });
     $('#settings-add-starter-templates').addEventListener('click', addStarterAnnouncementTemplates);
+    $('#settings-add-package').addEventListener('click', function () { openPackageEditor(null); });
+    $('#item-package-add-item').addEventListener('click', function () {
+      var list = $('#item-package-items');
+      if ($all('.package-item-row', list).length >= 50) {
+        toast('Item packages are limited to 50 item types.', 'warn'); return;
+      }
+      var row = packageItemRow({}); list.append(row);
+      var search = $('input[role="combobox"]', row); if (search) search.focus();
+    });
+    $('#item-package-form').addEventListener('submit', submitItemPackage);
+    $('#item-package-delete').addEventListener('click', deleteItemPackage);
+    $('#item-package-starter').addEventListener('change', function () {
+      if (this.checked) $('#item-package-enabled').checked = true;
+    });
+    $('#item-package-enabled').addEventListener('change', function () {
+      if (!this.checked) $('#item-package-starter').checked = false;
+    });
     $('#settings-discard').addEventListener('click', function () { discardSettingsChanges(); });
     $('#settings-review').addEventListener('click', function () { showFormError($('#settings-error'), ''); });
     $('#settings-apply').addEventListener('click', applySettings);
@@ -4512,6 +4692,11 @@
     $('#console-form').addEventListener('submit', submitConsole);
 
     document.addEventListener('click', function (event) {
+      var packageButton = event.target.closest('[data-edit-package]');
+      if (packageButton && !packageButton.disabled) {
+        var itemPackage = itemPackages().find(function (candidate) { return candidate.id === packageButton.dataset.editPackage; });
+        if (itemPackage) openPackageEditor(itemPackage);
+      }
       var staffRecordButton = event.target.closest('[data-open-staff-record]');
       if (staffRecordButton && !staffRecordButton.disabled) {
         var selection = staffRecordButton.dataset.player || '';

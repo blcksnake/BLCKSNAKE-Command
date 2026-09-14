@@ -906,6 +906,12 @@ textarea:focus {
   padding: 16px 18px;
 }
 
+.map-player-count {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
 .map-player-stat strong {
   font-size: 34px;
   line-height: .95;
@@ -2740,9 +2746,98 @@ dialog::backdrop {
   padding: 18px;
 }
 
+.settings-package-list,
+.package-item-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-package-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgb(0 19 33 / 55%);
+  padding: 12px;
+}
+
+.settings-package-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.settings-package-copy strong,
+.settings-package-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-package-copy span { color: var(--muted); font-size: 12px; }
+
+.settings-package-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+#item-package-dialog {
+  width: min(860px, calc(100% - 28px));
+}
+
+.package-editor-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.package-items-section {
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.package-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.package-items-heading h3,
+.package-items-heading p { margin: 0; }
+.package-items-heading p { margin-top: 3px; color: var(--muted); font-size: 12px; }
+
+.package-item-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 100px 100px auto auto;
+  align-items: end;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgb(0 19 33 / 55%);
+  padding: 12px;
+}
+
+.package-item-row > * { min-width: 0; }
+.package-item-row > .full { grid-column: auto; }
+.package-item-blueprint { min-height: 40px; }
+.package-item-remove { margin-bottom: 3px; }
+.dialog-footer-spacer { flex: 1; }
+
 @media (max-width: 720px) {
   .settings-template-row { grid-template-columns: 1fr; }
   .settings-template-remove { justify-self: start; margin-top: 0; }
+  .settings-package-row { grid-template-columns: 1fr auto; }
+  .settings-package-copy { grid-column: 1 / -1; }
+  .settings-package-badges { justify-content: flex-start; flex-wrap: wrap; }
+  .package-item-row { grid-template-columns: 1fr 1fr; }
+  .package-item-row > .full { grid-column: 1 / -1; }
+  .package-item-blueprint,
+  .package-item-remove { justify-self: start; }
 }
 
 #settings-discord-fields.disabled .settings-field,

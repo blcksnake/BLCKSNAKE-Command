@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 - 2026-09-14
+
+- Add administrator-managed multi-item packages for starter supplies, boss-fight preparation, and other reusable grants. Moderators with **Give Items** access can grant enabled packages to connected players.
+- Allow multiple packages to be marked for automatic, once-per-cluster delivery when a player first joins. Delivery eligibility and per-item attempts are stored durably to prevent duplicate automatic grants across maps or restarts.
+- Correct the missing space between the player count and the “player(s) connected” label on map cards.
+- Keep the item-package editor fully visible and usable at desktop, tablet, and mobile widths.
+
 ## 1.1.1 - 2026-09-11
 
 - Recover map-specific item and XP targeting after transient SFTP failures, suppress repeated profile-backoff warnings, and report pre-RCON lookup failures deterministically.

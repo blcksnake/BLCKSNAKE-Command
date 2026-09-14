@@ -205,13 +205,14 @@ function logRoute(pathname) {
     '/admin/api/setup', '/admin/api/session/password', '/admin/api/session/reauthenticate', '/admin/api/operators',
     '/dashboard-ca.pem', '/admin/api/settings', '/admin/api/settings/automation-token/ack',
     '/admin/api/settings/sftp-host-key', '/admin/api/settings/restart',
-    '/admin/api/bootstrap', '/admin/api/players', '/admin/api/players/record', '/admin/api/players/notes', '/admin/api/players/identifiers', '/admin/api/items', '/admin/api/activity',
+    '/admin/api/bootstrap', '/admin/api/players', '/admin/api/players/record', '/admin/api/players/notes', '/admin/api/players/identifiers', '/admin/api/items', '/admin/api/packages', '/admin/api/activity',
     '/admin/api/diagnostics', '/admin/api/actions/preview', '/admin/api/actions/execute',
   ]);
   if (known.has(pathname)) return pathname;
   if (/^\/admin\/api\/operators\/[A-Za-z0-9_-]{16,64}(?:\/reset-password)?$/u.test(pathname)) {
     return pathname.endsWith('/reset-password') ? '/admin/api/operators/:id/reset-password' : '/admin/api/operators/:id';
   }
+  if (/^\/admin\/api\/packages\/pkg_[A-Za-z0-9_-]{22}$/u.test(pathname)) return '/admin/api/packages/:id';
   return pathname.startsWith('/admin/api/') ? '/admin/api/unmatched' : 'unmatched';
 }
 
@@ -415,6 +416,22 @@ export class HttpService {
         return this.writeAdminResult(response, this.adminApi.playerIdentifiers(request, body));
       }
       if (request.method === 'GET' && url.pathname === '/admin/api/items') return this.writeAdminResult(response, { body: this.adminApi.items(request, url) });
+      if (request.method === 'POST' && url.pathname === '/admin/api/packages') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 64 * 1024);
+        return this.writeAdminResult(response, await this.adminApi.createPackage(request, body));
+      }
+      const packageRoute = url.pathname.match(/^\/admin\/api\/packages\/(pkg_[A-Za-z0-9_-]{22})$/u);
+      if (packageRoute && request.method === 'PUT') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 64 * 1024);
+        return this.writeAdminResult(response, await this.adminApi.updatePackage(request, packageRoute[1], body));
+      }
+      if (packageRoute && request.method === 'DELETE') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 2_048);
+        return this.writeAdminResult(response, await this.adminApi.deletePackage(request, packageRoute[1], body));
+      }
       if (request.method === 'GET' && url.pathname === '/admin/api/activity') return this.writeAdminResult(response, { body: this.adminApi.activityLog(request) });
       if (request.method === 'GET' && url.pathname === '/admin/api/diagnostics') return this.writeAdminResult(response, { body: this.adminApi.diagnostics(request, url) });
       if (request.method === 'GET' && url.pathname === '/admin/api/operators') return this.writeAdminResult(response, { body: this.adminApi.operators(request) });

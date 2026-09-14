@@ -51,6 +51,8 @@ Use **Operators → Permissions** to give individual moderators selected operati
 
 Five starter broadcasts are available under **Settings → Broadcast templates**. Administrators can add, edit, restore, or delete reusable messages, then activate changes with **Apply & restart**. Player staff records attribute new entries to the responsible username and automatically retain warnings, Cluster Chat mute changes, kicks, and bans alongside categorized manual notes.
 
+Administrators can create shared multi-item packages under **Settings → Item packages**. Each package can be enabled for manual staff grants and can optionally be delivered once when a player first joins the cluster. Multiple starter packages may be active together. Moderators who have **Give Items** permission can grant enabled packages to any connected player, including their own connected survivor. Automatic delivery requires a verified numeric PlayerDataID from the map's profile import or an existing saved mapping.
+
 ## Docker commands
 
 ```bash
@@ -104,7 +106,7 @@ Do not publish the dashboard or RCON ports directly to the internet.
 ## Build from source
 
 ```bash
-docker build --pull -t blcksnake/blcksnake-command:1.1.1 .
+docker build --pull -t blcksnake/blcksnake-command:1.2.0 .
 ```
 
 Product analytics is disabled by default and requires an administrator to enable it in **Settings**. See [Configuration](docs/CONFIGURATION.md#optional-product-analytics) for the exact data sent.
