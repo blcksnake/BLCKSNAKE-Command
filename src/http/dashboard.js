@@ -81,6 +81,9 @@ export const DASHBOARD_HTML = `<!doctype html>
         <button class="nav-item" type="button" data-tab="activity">
           <span class="nav-glyph" aria-hidden="true">AC</span><span>Activity</span>
         </button>
+        <button class="nav-item" type="button" data-tab="analytics">
+          <span class="nav-glyph" aria-hidden="true">AN</span><span>Analytics</span>
+        </button>
         <button class="nav-item" type="button" data-tab="diagnostics" data-admin-only hidden>
           <span class="nav-glyph" aria-hidden="true">DG</span><span>Diagnostics</span>
         </button>
@@ -253,6 +256,15 @@ export const DASHBOARD_HTML = `<!doctype html>
           <div class="activity-list surface" id="activity-list" aria-live="polite"><div class="skeleton tall"></div></div>
         </section>
 
+        <section class="tab-panel" id="panel-analytics" data-panel="analytics" aria-labelledby="analytics-heading" hidden>
+          <div class="section-heading"><div><p class="eyebrow">Live operations</p><h2 id="analytics-heading">Analytics</h2><p>Current cluster health and player distribution. No player identifiers or chat content are collected.</p></div></div>
+          <div class="metric-grid" aria-label="Live analytics">
+            <article class="metric-card" id="metric-analytics-maps"><span>Map availability</span><strong>--</strong><small>Waiting for status</small></article><article class="metric-card" id="metric-analytics-players"><span>Players online</span><strong>--</strong><small>Across the selected scope</small></article><article class="metric-card" id="metric-analytics-discord"><span>Discord relay</span><strong>--</strong><small>Waiting for status</small></article><article class="metric-card" id="metric-analytics-uptime"><span>Service uptime</span><strong>--</strong><small>Waiting for status</small></article>
+          </div>
+          <div class="overview-columns analytics-columns"><section class="surface analytics-surface"><div class="surface-heading"><div><h3>Players by map</h3><p>Connected survivors reported by each map.</p></div></div><div id="analytics-map-breakdown" class="analytics-list"></div></section><section class="surface analytics-surface"><div class="surface-heading"><div><h3>Operational summary</h3><p>Live connection and schedule state.</p></div></div><div id="analytics-summary" class="analytics-list"></div></section></div>
+          <section class="surface analytics-surface analytics-player-surface"><div class="surface-heading"><div><h3>Player activity</h3><p>Persistent total time, completed sessions, last-seen time, and current live-session duration.</p></div></div><div id="analytics-player-time" class="analytics-list"></div></section>
+        </section>
+
         <section class="tab-panel" id="panel-diagnostics" data-panel="diagnostics" data-admin-only aria-labelledby="diagnostics-heading" hidden>
           <div class="section-heading">
             <div><p class="eyebrow">Live troubleshooting</p><h2 id="diagnostics-heading">Diagnostics</h2><p>Recent events from this process.</p></div>
@@ -362,6 +374,12 @@ export const DASHBOARD_HTML = `<!doctype html>
                   <div class="settings-card-heading"><div><p class="eyebrow">Staff messages</p><h3 id="settings-templates-heading">Broadcast templates</h3><p>Create reusable announcements for the whole cluster or one map.</p></div><button class="secondary-button" id="settings-add-template" type="button">Add template</button></div>
                   <div class="settings-template-actions"><button class="quiet-button" id="settings-add-starter-templates" type="button">Add missing starter templates</button><span>Up to 32 templates. Changes activate after Apply &amp; restart.</span></div>
                   <div class="settings-template-list" id="settings-template-list" aria-live="polite"></div>
+                  <div class="settings-field-grid" style="margin-top:16px">
+                    <label class="settings-field full" for="settings-discord-invite"><span>Discord invite URL</span><input id="settings-discord-invite" type="url" maxlength="256" placeholder="https://discord.com/invite/example"><small>Use {discordInvite} in the reminder message to insert this link.</small></label>
+                    <label class="settings-check"><input id="settings-recurring-enabled" type="checkbox"><span><strong>Repeat help reminder</strong><small>Send to connected ARK players and the Discord channel.</small></span></label>
+                    <label class="settings-field" for="settings-recurring-interval"><span>Repeat every</span><select id="settings-recurring-interval"><option value="60">1 hour</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option></select></label>
+                    <label class="settings-field full" for="settings-recurring-message"><span>Reminder message</span><textarea id="settings-recurring-message" rows="2" maxlength="400">Need help? Join {discordInvite} or type !cc help.</textarea></label>
+                  </div>
                 </section>
 
                 <section class="settings-card surface" id="settings-packages" aria-labelledby="settings-packages-heading">

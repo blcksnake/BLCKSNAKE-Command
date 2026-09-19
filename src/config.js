@@ -65,6 +65,8 @@ const DEFAULTS = Object.freeze({
     allowRawRcon: false, rawRconAllowlist: ['ListPlayers', 'SaveWorld', 'GetChat'],
     announcementTemplates: DEFAULT_ANNOUNCEMENT_TEMPLATES,
     announcementTemplatesInitialized: true,
+    // Recurring notices are opt-in. Use {discordInvite} to insert this URL.
+    discordInviteUrl: '', recurringAnnouncements: [],
   },
   operations: {
     joinLeaveAlerts: true, restartWarningMinutes: [15, 10, 5, 1], serverStatusAlerts: true,
@@ -232,6 +234,24 @@ export function validateConfig(config, { allowNoServers = false, allowManagedSec
     assert(typeof message === 'string' && message.trim(), `moderation.announcementTemplates.${name} must be non-empty text`);
     assert(codePointLength(message.trim()) <= announcementMaximum,
       `moderation.announcementTemplates.${name} exceeds the ${announcementMaximum}-character announcement limit`);
+  }
+  assert(typeof config.moderation.discordInviteUrl === 'string' && config.moderation.discordInviteUrl.length <= 256,
+    'moderation.discordInviteUrl must be a string of at most 256 characters');
+  if (config.moderation.discordInviteUrl) {
+    let invite = null; try { invite = new URL(config.moderation.discordInviteUrl); } catch { /* validated below */ }
+    assert(invite?.protocol === 'https:' && /(^|\.)discord(?:app)?\.com$/iu.test(invite.hostname),
+      'moderation.discordInviteUrl must be an HTTPS discord.com or discordapp.com URL');
+  }
+  assert(Array.isArray(config.moderation.recurringAnnouncements) && config.moderation.recurringAnnouncements.length <= 12,
+    'moderation.recurringAnnouncements must contain at most 12 entries');
+  for (const [index, schedule] of config.moderation.recurringAnnouncements.entries()) {
+    assert(schedule && typeof schedule === 'object' && !Array.isArray(schedule), `moderation.recurringAnnouncements.${index} must be an object`);
+    assert(typeof schedule.enabled === 'boolean', `moderation.recurringAnnouncements.${index}.enabled must be true or false`);
+    positiveInteger(schedule.intervalMinutes, `moderation.recurringAnnouncements.${index}.intervalMinutes`, 60, 10_080);
+    assert(typeof schedule.message === 'string' && schedule.message.trim() && codePointLength(schedule.message.trim()) <= announcementMaximum,
+      `moderation.recurringAnnouncements.${index}.message must be a valid announcement`);
+    assert(schedule.enabled !== true || !schedule.message.includes('{discordInvite}') || Boolean(config.moderation.discordInviteUrl),
+      `moderation.recurringAnnouncements.${index} uses {discordInvite} but no Discord invite URL is configured`);
   }
   assert(typeof config.moderation.allowRawRcon === 'boolean', 'moderation.allowRawRcon must be true or false');
   assert(Array.isArray(config.moderation.rawRconAllowlist), 'moderation.rawRconAllowlist must be an array');

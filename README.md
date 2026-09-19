@@ -51,6 +51,10 @@ Use **Operators → Permissions** to give individual moderators selected operati
 
 Five starter broadcasts are available under **Settings → Broadcast templates**. Administrators can add, edit, restore, or delete reusable messages, then activate changes with **Apply & restart**. Player staff records attribute new entries to the responsible username and automatically retain warnings, Cluster Chat mute changes, kicks, and bans alongside categorized manual notes.
 
+Recurring reminders can also be configured there. Choose a 1, 3, 6, 12, or 24-hour interval and use `{discordInvite}` in the message to insert the validated Discord invite URL. Reminders are delivered to connected ARK players and the configured Discord chat channel.
+
+The **Analytics** page shows live map and player distribution together with persistent player playtime, completed sessions, last-seen timestamps, and current live-session duration. Completed session totals are stored in the encrypted state volume and survive normal application and Docker restarts.
+
 Administrators can create shared multi-item packages under **Settings → Item packages**. Each package can be enabled for manual staff grants and can optionally be delivered once when a player first joins the cluster. Multiple starter packages may be active together. Moderators who have **Give Items** permission can grant enabled packages to any connected player, including their own connected survivor. Automatic delivery requires a verified numeric PlayerDataID from the map's profile import or an existing saved mapping.
 
 ## Docker commands
@@ -106,7 +110,7 @@ Do not publish the dashboard or RCON ports directly to the internet.
 ## Build from source
 
 ```bash
-docker build --pull -t blcksnake/blcksnake-command:1.2.1 .
+docker build --pull -t blcksnake/blcksnake-command:1.3.0 .
 ```
 
 Product analytics is disabled by default and requires an administrator to enable it in **Settings**. See [Configuration](docs/CONFIGURATION.md#optional-product-analytics) for the exact data sent.

@@ -728,6 +728,19 @@ textarea:focus {
   margin-top: 13px;
 }
 
+.analytics-surface { padding: 20px; }
+.analytics-surface .surface-heading p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.analytics-list { display: grid; gap: 10px; margin-top: 16px; }
+.analytics-row { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(100px, 1.3fr); align-items: center; gap: 14px; }
+.analytics-row-copy { display: grid; gap: 3px; min-width: 0; }
+.analytics-row-copy strong, .analytics-row-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.analytics-row-copy span { color: var(--muted); font-size: 12px; }
+.analytics-bar { display: block; height: 10px; overflow: hidden; border-radius: 999px; background: #001321; }
+.analytics-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green), var(--cyan)); }
+.analytics-summary-row { border-left: 3px solid var(--cyan); border-radius: 5px; background: #001321; padding: 11px 12px; color: var(--text-soft); font-size: 13px; }
+.analytics-player-surface { margin-top: 13px; }
+.analytics-time { color: var(--green); font: 750 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: right; }
+
 .attention-surface,
 .restart-surface,
 .operation-group,
@@ -1753,18 +1766,21 @@ dialog::backdrop {
 }
 
 .combobox-results {
-  position: absolute;
+  position: static;
   z-index: 5;
-  top: calc(100% + 4px);
-  right: 0;
-  left: 0;
+  width: 100%;
   max-height: 245px;
+  margin-top: 7px;
   overflow-y: auto;
   border: 1px solid var(--line-bright);
   border-radius: 10px;
   background: #000f1c;
   padding: 5px;
   box-shadow: 0 15px 35px rgb(0 0 0 / 42%);
+}
+
+.combobox-results.upward {
+  /* Kept for compatibility with open dialogs from an older client bundle. */
 }
 
 .combobox-option {
@@ -1778,6 +1794,22 @@ dialog::backdrop {
   color: var(--text-soft);
   text-align: left;
 }
+
+.combobox-loading,
+.combobox-retry {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 10px;
+  color: var(--muted);
+  text-align: left;
+}
+
+.combobox-retry { color: var(--amber); cursor: pointer; }
+.combobox-retry:hover { background: #002848; }
 
 .combobox-option:hover,
 .combobox-option.active {
@@ -2823,6 +2855,12 @@ dialog::backdrop {
 }
 
 .package-item-row > * { min-width: 0; }
+.package-item-row > label {
+  position: relative;
+  display: grid;
+  gap: 7px;
+}
+.package-item-row > label.combobox-open { grid-column: 1 / -1; }
 .package-item-row > .full { grid-column: auto; }
 .package-item-blueprint { min-height: 40px; }
 .package-item-remove { margin-bottom: 3px; }

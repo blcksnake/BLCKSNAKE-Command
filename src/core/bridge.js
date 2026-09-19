@@ -131,7 +131,7 @@ export class ClusterBridge {
     this.filter = new ContentFilter(config.moderation); this.boundServerHandlers = new Map(); this.sessionStarts = new Map();
     this.initialPlayerSnapshots = new Set(); this.pendingStarterDeliveries = new Map();
     this.playerChoiceTokens = new Map(); this.playerChoiceTokensByTarget = new Map(); this.randomBytesFn = randomBytesFn;
-    this.setIntervalFn = setIntervalFn; this.clearIntervalFn = clearIntervalFn; this.restartTimer = null; this.scheduledRestarts = new Map();
+    this.setIntervalFn = setIntervalFn; this.clearIntervalFn = clearIntervalFn; this.restartTimer = null; this.scheduledRestarts = new Map(); this.recurringAnnouncements = new Map();
     this.stopPromise = null;
     this.boundDiscordMessage = (message) => this.guard('Discord message', () => this.handleDiscordMessage(message));
     this.boundDiscordInteraction = (interaction) => this.guard('Discord interaction', () => this.handleInteraction(interaction));
@@ -182,6 +182,7 @@ export class ClusterBridge {
         } else await this.state.clearScheduledRestart?.(restart.serverId);
       }
       this.restartTimer = this.setIntervalFn(() => this.guard('Scheduled restarts', () => this.processScheduledRestarts()), 1_000);
+      this.initializeRecurringAnnouncements();
     } catch (error) { await this.stop().catch(() => undefined); throw error; }
   }
 
@@ -204,7 +205,7 @@ export class ClusterBridge {
     }
     this.boundServerHandlers.clear(); this.pendingProfileImports.clear(); this.initialPlayerSnapshots.clear(); this.pendingStarterDeliveries.clear();
     this.playerChoiceTokens.clear(); this.playerChoiceTokensByTarget.clear();
-    this.clearIntervalFn(this.restartTimer); this.restartTimer = null; this.scheduledRestarts.clear();
+    this.clearIntervalFn(this.restartTimer); this.restartTimer = null; this.scheduledRestarts.clear(); this.recurringAnnouncements.clear();
     if (this.discord) {
       this.discord.off('messageCreate', this.boundDiscordMessage);
       this.discord.off('interactionCreate', this.boundDiscordInteraction);
@@ -1111,6 +1112,8 @@ export class ClusterBridge {
       const identity = { eosId: player.id, playerName: player.name, characterName: mapping?.characterName };
       const mute = this.state.getMute(this.state.gameMuteKeys(identity));
       const playtime = this.state.getPlaytime?.(player.id);
+      const activeSession = this.sessionStarts.get(this.sessionKey(server, player));
+      const activeSessionSeconds = activeSession ? Math.max(0, Math.floor((this.now() - activeSession.startedAt) / 1_000)) : 0;
       choices.push({
         selection: this.playerChoiceToken(server, player, userId, String(purpose)),
         name: accountName,
@@ -1120,7 +1123,8 @@ export class ClusterBridge {
         targeting,
         linked: Boolean(this.state.getLinkByGame(identity)),
         mutedUntil: mute?.until ?? null,
-        playtimeSeconds: Number.isFinite(playtime?.totalSeconds) ? Math.max(0, playtime.totalSeconds) : 0,
+        playtimeSeconds: (Number.isFinite(playtime?.totalSeconds) ? Math.max(0, playtime.totalSeconds) : 0) + activeSessionSeconds,
+        activeSessionSeconds,
         notesCount: this.state.listModerationNotes?.(player.id)?.length ?? 0,
         score: Number.isFinite(score) ? score : 2,
       });
@@ -1808,6 +1812,7 @@ export class ClusterBridge {
   }
 
   async processScheduledRestarts() {
+    await this.processRecurringAnnouncements();
     const warnings = this.config.operations.restartWarningMinutes ?? [];
     for (const [serverId, scheduled] of this.scheduledRestarts) {
       const server = this.serverMap.get(serverId); if (!server) { this.scheduledRestarts.delete(serverId); continue; }
@@ -1964,6 +1969,34 @@ export class ClusterBridge {
     });
     await this.audit(`${action.toLocaleUpperCase('en-US')} ${player.name} on ${server.id} by ${actor} reason=${reason}`);
     return { ok: true, message: `${player.name} ${action === 'kick' ? 'was kicked from' : 'was banned on'} ${server.name}.` };
+  }
+
+  initializeRecurringAnnouncements() {
+    this.recurringAnnouncements.clear();
+    for (const [index, entry] of (this.config.moderation?.recurringAnnouncements ?? []).entries()) {
+      if (entry?.enabled !== true) continue;
+      const intervalMs = Number(entry.intervalMinutes) * 60_000;
+      this.recurringAnnouncements.set(index, { intervalMs, message: String(entry.message ?? ''), nextAt: this.now() + intervalMs });
+    }
+  }
+
+  async processRecurringAnnouncements() {
+    const now = this.now();
+    for (const [index, schedule] of this.recurringAnnouncements) {
+      if (schedule.nextAt > now) continue;
+      // Claim the next interval before delivery so a slow request cannot lead
+      // to the same reminder being displayed twice.
+      schedule.nextAt = now + schedule.intervalMs;
+      const invite = String(this.config.moderation?.discordInviteUrl ?? '').trim();
+      const message = schedule.message.replaceAll('{discordInvite}', invite);
+      try {
+        await this.broadcastAnnouncement(message, `scheduled:reminder:${index}`, undefined);
+        this.logger?.info?.('Recurring announcement delivered', { event: 'announcement.recurring_succeeded', component: 'bridge', schedule: index, outcome: 'succeeded' });
+      } catch (error) {
+        this.logger?.warn?.('Recurring announcement failed', { event: 'announcement.recurring_failed', component: 'bridge', schedule: index, outcome: 'failed', error: error.message });
+        this.metrics.increment('errors_total', { context: 'recurring_announcement' });
+      }
+    }
   }
 
   async broadcastAnnouncement(message, actor, serverId) {

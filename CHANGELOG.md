@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0 - 2026-09-19
+
+- Add a dedicated Analytics dashboard with live map availability, current player distribution, Discord relay state, service uptime, scheduled-restart status, and per-map activity.
+- Preserve the fixed BLCKSNAKE sidebar identity, show configured map names, and keep Analytics updates scoped to its own metric cards.
+- Show restart-safe player activity with persistent total playtime, completed-session counts, last-seen times, and current live-session duration without exposing stable player identifiers.
+- Add administrator-managed recurring announcements at 1, 3, 6, 12, or 24-hour intervals for help prompts, community reminders, and Discord invitations.
+- Support a validated `{discordInvite}` placeholder so one configured Discord invite URL can be reused safely in scheduled messages.
+- Keep each item-package catalog lookup independent so searching one row no longer cancels another row's request.
+- Make the package and single-item catalog pickers reserve visible space for suggestions, expand package results across the editor, and show loading, empty, and retry states instead of failing silently.
+
 ## 1.2.1 - 2026-09-14
 
 - Bundle and safely seed the 54 starter, engagement, and boss-fight item packages into new or previously empty installations.

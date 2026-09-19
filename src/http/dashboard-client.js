@@ -20,6 +20,7 @@
     operations: ['Operations', 'Server and player controls'],
     console: ['Advanced Console', 'Allowlisted RCON commands'],
     activity: ['Activity', 'Administrator actions'],
+    analytics: ['Analytics', 'Live cluster health and player distribution'],
     diagnostics: ['Diagnostics', 'Recent service events'],
     operators: ['Operators', 'Accounts and roles'],
     settings: ['Settings', 'Cluster and integrations']
@@ -41,6 +42,7 @@
     activity: [],
     activityScope: 'own',
     diagnostics: [],
+    analyticsHistory: [],
     operators: [],
     operatorGrantableActions: [],
     permissionOperator: null,
@@ -65,12 +67,13 @@
     activityController: null,
     diagnosticController: null,
     operatorController: null,
-    itemController: null,
+    itemControllers: new WeakMap(),
+    activeItemControllers: new Set(),
     actionPlayerController: null,
     identifierController: null,
     staffRecordController: null,
     playerSearchTimer: null,
-    itemSearchTimer: null,
+    itemSearchTimers: new Map(),
     itemComboboxSequence: 0,
     diagnosticSearchTimer: null,
     selectedPlayer: null,
@@ -456,6 +459,7 @@
     state.activity = [];
     state.activityScope = 'own';
     state.diagnostics = [];
+    state.analyticsHistory = [];
     state.operators = [];
     state.operatorGrantableActions = [];
     state.permissionOperator = null;
@@ -504,7 +508,10 @@
     if (state.diagnosticController) state.diagnosticController.abort();
     if (state.operatorController) state.operatorController.abort();
     if (state.settingsController) state.settingsController.abort();
-    if (state.itemController) state.itemController.abort();
+    state.itemSearchTimers.forEach(function (timer) { window.clearTimeout(timer); });
+    state.itemSearchTimers.clear();
+    state.activeItemControllers.forEach(function (controller) { controller.abort(); });
+    state.activeItemControllers.clear();
     if (state.actionPlayerController) state.actionPlayerController.abort();
     if (state.identifierController) state.identifierController.abort();
     if (state.staffRecordController) state.staffRecordController.abort();
@@ -772,7 +779,7 @@
     if (!options || options.updateHash !== false) {
       history.replaceState(null, '', '#' + tab);
     }
-    if (tab === 'players') loadPlayers({ quiet: state.players.length > 0 });
+    if (tab === 'players' || tab === 'analytics') loadPlayers({ quiet: state.players.length > 0 });
     if (tab === 'activity' || tab === 'console') loadActivity({ quiet: state.activity.length > 0 });
     if (tab === 'diagnostics') loadDiagnostics({ quiet: state.diagnostics.length > 0 });
     if (tab === 'operators') loadOperators({ quiet: state.operators.length > 0 });
@@ -811,6 +818,8 @@
       clearPlayerIdentifierDisclosure();
     }
     state.status = body.status && typeof body.status === 'object' ? body.status : {};
+    state.analyticsHistory = body.analytics && Array.isArray(body.analytics.playtimeLeaderboard)
+      ? body.analytics.playtimeLeaderboard.slice(0, 50) : [];
     normalizeCapabilities(body.capabilities);
     state.passwordChangeRequired = Boolean(state.session && state.session.mustChangePassword);
     state.servers = Array.isArray(state.status.servers) ? state.status.servers.slice() : [];
@@ -951,6 +960,7 @@
 
   function setMetric(id, value, note, tone) {
     var card = $('#metric-' + id);
+    if (!card) return;
     $('strong', card).textContent = safeString(value, 80);
     $('small', card).textContent = safeString(note, 150);
     setTone(card, 'metric-card', tone);
@@ -988,7 +998,40 @@
     renderAttention(servers, discord, discordEnabled);
     renderRestarts(Array.isArray(status.scheduledRestarts) ? status.scheduledRestarts : []);
     renderMaps(servers);
+    renderAnalytics(status, servers, discord, players, connected);
     updateLiveState();
+  }
+
+  function renderAnalytics(status, servers, discord, players, connected) {
+    if (!$('#metric-analytics-maps')) return;
+    var discordEnabled = discord.enabled !== false;
+    setMetric('analytics-maps', connected + ' / ' + servers.length, servers.length ? plural(servers.length - connected, 'map') + ' offline' : 'No maps configured', connected === servers.length && servers.length ? 'good' : connected ? 'warn' : 'bad');
+    setMetric('analytics-players', String(players), servers.length === state.servers.length ? 'Across the cluster' : 'Selected map scope', players ? 'good' : '');
+    setMetric('analytics-discord', !discordEnabled ? 'Disabled' : discord.ready ? 'Connected' : 'Offline', discord.user || 'Gateway relay', !discordEnabled ? '' : discord.ready ? 'good' : 'bad');
+    var seconds = numeric(status.uptimeSeconds); var hours = Math.floor(seconds / 3600); var minutes = Math.floor((seconds % 3600) / 60);
+    setMetric('analytics-uptime', hours ? hours + 'h ' + minutes + 'm' : minutes + 'm', status.ready ? 'Service operational' : 'Service needs attention', status.ready ? 'good' : 'warn');
+    var maps = servers.map(function (server) { return { name: safeString(server.serverName || server.serverId || 'Map', 96), players: numeric(server.playerCount), connected: Boolean(server.connected) }; });
+    var maximum = Math.max(1, maps.reduce(function (largest, map) { return Math.max(largest, map.players); }, 0));
+    $('#analytics-map-breakdown').replaceChildren.apply($('#analytics-map-breakdown'), maps.length ? maps.map(function (map) {
+      var row = element('div', 'analytics-row'); var copy = element('div', 'analytics-row-copy'); copy.append(element('strong', '', map.name), element('span', '', map.connected ? plural(map.players, 'player') + ' connected' : 'Offline'));
+      var bar = element('span', 'analytics-bar'); var fill = element('i', ''); fill.style.width = String((map.players / maximum) * 100) + '%'; bar.append(fill); row.append(copy, bar); return row;
+    }) : [element('div', 'empty-copy', 'No map data is available yet.')]);
+    var restarts = Array.isArray(status.scheduledRestarts) ? status.scheduledRestarts.length : 0;
+    var summary = [connected + ' of ' + servers.length + ' maps responding', plural(players, 'player') + ' connected now', discordEnabled ? (discord.ready ? 'Discord relay connected' : 'Discord relay unavailable') : 'Discord relay disabled', restarts ? plural(restarts, 'restart') + ' scheduled' : 'No restarts scheduled'];
+    $('#analytics-summary').replaceChildren.apply($('#analytics-summary'), summary.map(function (line) { return element('div', 'analytics-summary-row', line); }));
+    var liveByName = new Map(state.players.map(function (player) { return [safeString(player.name || player.survivorName, 96).toLowerCase(), player]; }));
+    var playerTimes = state.analyticsHistory.map(function (entry) {
+      var live = liveByName.get(safeString(entry.displayName, 96).toLowerCase());
+      if (live) liveByName.delete(safeString(entry.displayName, 96).toLowerCase());
+      return { name: entry.displayName, serverName: live && (live.serverName || live.serverId), playtimeSeconds: live ? live.playtimeSeconds : entry.totalSeconds, activeSessionSeconds: live && live.activeSessionSeconds, sessions: entry.sessions, lastSeenAt: entry.lastSeenAt };
+    }).concat(Array.from(liveByName.values()).map(function (player) { return { name: player.survivorName || player.name, serverName: player.serverName || player.serverId, playtimeSeconds: player.playtimeSeconds, activeSessionSeconds: player.activeSessionSeconds, sessions: 0, lastSeenAt: null }; })).sort(function (left, right) { return numeric(right.playtimeSeconds) - numeric(left.playtimeSeconds); }).slice(0, 20);
+    $('#analytics-player-time').replaceChildren.apply($('#analytics-player-time'), playerTimes.length ? playerTimes.map(function (player) {
+      var row = element('div', 'analytics-row'); var copy = element('div', 'analytics-row-copy');
+      var detail = numeric(player.activeSessionSeconds) ? (player.serverName || 'Online') + ' · live session ' + formatDuration(player.activeSessionSeconds)
+        : plural(numeric(player.sessions), 'completed session') + (player.lastSeenAt ? ' · last seen ' + formatAge(player.lastSeenAt) : '');
+      copy.append(element('strong', '', player.name || 'Known player'), element('span', '', detail));
+      row.append(copy, element('strong', 'analytics-time', formatDuration(numeric(player.playtimeSeconds)))); return row;
+    }) : [element('div', 'empty-copy', 'No completed player sessions have been recorded yet.')]);
   }
 
   function attentionEntry(tone, symbol, title, detail) {
@@ -1245,6 +1288,7 @@
       }) : [];
       state.lastPlayerRefreshAt = Date.now();
       renderPlayers();
+      if (state.currentTab === 'analytics') renderStatus();
       return true;
     } catch (error) {
       if (error && error.name === 'AbortError') return false;
@@ -2294,7 +2338,9 @@
         moderation: {
           allowRawRcon: Boolean(moderationSource.allowRawRcon),
           rawRconAllowlist: settingsList(moderationSource.rawRconAllowlist, 64),
-          announcementTemplates: settingsAnnouncementTemplates(moderationSource.announcementTemplates)
+          announcementTemplates: settingsAnnouncementTemplates(moderationSource.announcementTemplates),
+          discordInviteUrl: safeString(moderationSource.discordInviteUrl, 256),
+          recurringAnnouncements: Array.isArray(moderationSource.recurringAnnouncements) ? moderationSource.recurringAnnouncements.slice(0, 12) : []
         }
       }
     };
@@ -3001,6 +3047,11 @@
     $('#settings-analytics-enabled').checked = current.settings.analytics.enabled;
     applyDiscordFieldState();
     var moderation = current.settings.moderation;
+    $('#settings-discord-invite').value = moderation.discordInviteUrl || '';
+    var reminder = moderation.recurringAnnouncements[0] || {};
+    $('#settings-recurring-enabled').checked = reminder.enabled === true;
+    $('#settings-recurring-interval').value = String(reminder.intervalMinutes || 60);
+    $('#settings-recurring-message').value = reminder.message || 'Need help? Join {discordInvite} or type !cc help.';
     renderSettingsTemplates(moderation.announcementTemplates);
     $('#settings-raw-rcon-enabled').checked = moderation.allowRawRcon;
     $('#settings-rcon-allowlist').value = moderation.rawRconAllowlist.join('\n');
@@ -3158,7 +3209,13 @@
       moderation: {
         allowRawRcon: $('#settings-raw-rcon-enabled').checked,
         rawRconAllowlist: splitSettingsLines($('#settings-rcon-allowlist').value),
-        announcementTemplates: readSettingsTemplates()
+        announcementTemplates: readSettingsTemplates(),
+        discordInviteUrl: $('#settings-discord-invite').value.trim(),
+        recurringAnnouncements: [{
+          enabled: $('#settings-recurring-enabled').checked,
+          intervalMinutes: Number($('#settings-recurring-interval').value),
+          message: $('#settings-recurring-message').value.trim()
+        }].concat((((state.settingsProjection || {}).settings || {}).moderation || {}).recurringAnnouncements?.slice(1, 12) || [])
       }
     };
   }
@@ -4075,8 +4132,16 @@
     search.addEventListener('input', function () {
       hidden.value = '';
       search.setCustomValidity('Choose an item from the trusted catalog results.');
-      window.clearTimeout(state.itemSearchTimer);
-      state.itemSearchTimer = window.setTimeout(function () { loadItems(search.value, search, hidden, results); }, 180);
+      var existingTimer = state.itemSearchTimers.get(search);
+      if (existingTimer) window.clearTimeout(existingTimer);
+      results.replaceChildren(element('div', 'combobox-loading', 'Searching trusted catalog...'));
+      results.hidden = false;
+      label.classList.add('combobox-open');
+      search.setAttribute('aria-expanded', 'true');
+      state.itemSearchTimers.set(search, window.setTimeout(function () {
+        state.itemSearchTimers.delete(search);
+        loadItems(search.value, search, hidden, results);
+      }, 80));
     });
     search.addEventListener('focus', function () {
       if (!hidden.value) loadItems(search.value, search, hidden, results);
@@ -4091,20 +4156,31 @@
   }
 
   async function loadItems(query, search, hidden, results) {
-    if (state.itemController) state.itemController.abort();
+    var previousController = state.itemControllers.get(search);
+    if (previousController) previousController.abort();
     var controller = new AbortController();
-    state.itemController = controller;
+    state.itemControllers.set(search, controller);
+    state.activeItemControllers.add(controller);
     try {
       var params = new URLSearchParams();
       if (query.trim()) params.set('q', query.trim().slice(0, 120));
       var response = await api('/admin/api/items?' + params.toString(), { signal: controller.signal });
-      if (state.itemController !== controller || !search.isConnected) return;
+      if (state.itemControllers.get(search) !== controller || !search.isConnected) return;
       renderItemResults(Array.isArray(response.items) ? response.items : [], search, hidden, results);
     } catch (error) {
       if (error && error.name === 'AbortError') return;
-      closeItemResults(search, results);
+      // Never fail silently: the hidden value must only be populated from a
+      // trusted result, so make a lookup failure actionable for the operator.
+      var retry = element('button', 'combobox-retry', 'Catalog lookup failed — retry');
+      retry.type = 'button';
+      retry.addEventListener('click', function () { loadItems(search.value, search, hidden, results); });
+      results.replaceChildren(retry);
+      results.hidden = false;
+      results.closest('label')?.classList.add('combobox-open');
+      search.setAttribute('aria-expanded', 'true');
     } finally {
-      if (state.itemController === controller) state.itemController = null;
+      if (state.itemControllers.get(search) === controller) state.itemControllers.delete(search);
+      state.activeItemControllers.delete(controller);
     }
   }
 
@@ -4134,6 +4210,8 @@
       results.replaceChildren.apply(results, nodes);
     }
     results.hidden = false;
+    results.closest('label')?.classList.add('combobox-open');
+    results.classList.remove('upward');
     search.setAttribute('aria-expanded', 'true');
   }
 
@@ -4147,6 +4225,7 @@
 
   function closeItemResults(search, results) {
     results.hidden = true;
+    results.closest('label')?.classList.remove('combobox-open');
     search.setAttribute('aria-expanded', 'false');
     $all('.combobox-option', results).forEach(function (option) { option.classList.remove('active'); });
   }

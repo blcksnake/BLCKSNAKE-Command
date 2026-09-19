@@ -754,9 +754,16 @@ export class AdminApi {
       .filter((itemPackage) => itemPackage.enabled || session.permissionLevel >= PermissionLevel.ADMIN)
       .map(publicItemPackage);
     const hasEnabledPackage = packages.some((itemPackage) => itemPackage.enabled);
+    const playtimeLeaderboard = (this.state.listPlaytimeLeaderboard?.(50) ?? []).map((entry) => ({
+      displayName: safeSnippet(entry.displayName || 'Known player', this.config.redactionSecrets, 96),
+      totalSeconds: Number.isFinite(entry.totalSeconds) ? Math.max(0, Math.floor(entry.totalSeconds)) : 0,
+      sessions: Number.isSafeInteger(entry.sessions) ? Math.max(0, entry.sessions) : 0,
+      lastSeenAt: Number.isFinite(entry.lastSeenAt) ? entry.lastSeenAt : null,
+    }));
     return {
       session: publicSession,
       status,
+      analytics: { playtimeLeaderboard },
       capabilities: {
         actions: allowedActions.map((action) => ({
           ...publicAction(action), name: action.id,

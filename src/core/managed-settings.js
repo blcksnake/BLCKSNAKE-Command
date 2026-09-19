@@ -19,7 +19,7 @@ const DISCORD_FIELDS = new Set([
   'enabled', 'token', 'clearToken', 'applicationId', 'guildId', 'chatChannelId', 'auditChannelId',
   'adminRoleIds', 'moderatorRoleIds', 'relayRoleIds', 'allowUnlinkedChat', 'registerCommands',
 ]);
-const MODERATION_FIELDS = new Set(['allowRawRcon', 'rawRconAllowlist', 'announcementTemplates']);
+const MODERATION_FIELDS = new Set(['allowRawRcon', 'rawRconAllowlist', 'announcementTemplates', 'discordInviteUrl', 'recurringAnnouncements']);
 const ANALYTICS_FIELDS = new Set(['enabled']);
 const SETTINGS_FIELDS = new Set(['clusterName', 'servers', 'discord', 'analytics', 'moderation']);
 const UPDATE_FIELDS = new Set([
@@ -240,7 +240,9 @@ function normalizeAnnouncementTemplates(raw, current, maximum) {
 
 function normalizeModeration(raw, current = {}, announcementMaximum = 400) {
   if (raw == null) return structuredClone(current);
-  const source = exact(raw, MODERATION_FIELDS, 'Moderation settings', new Set(['announcementTemplates']));
+  const source = exact(raw, MODERATION_FIELDS, 'Moderation settings', new Set([
+    'announcementTemplates', 'discordInviteUrl', 'recurringAnnouncements',
+  ]));
   const allowRawRcon = flag(source.allowRawRcon, 'Allowlisted console enabled');
   const rawRconAllowlist = stringArray(source.rawRconAllowlist, 'Allowlisted console verbs', {
     maximum: 64, pattern: /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u,
@@ -255,6 +257,13 @@ function normalizeModeration(raw, current = {}, announcementMaximum = 400) {
     announcementTemplates: normalizeAnnouncementTemplates(
       source.announcementTemplates, current.announcementTemplates, announcementMaximum,
     ),
+    discordInviteUrl: text(source.discordInviteUrl ?? current.discordInviteUrl ?? '', 'Discord invite URL', { maximum: 256 }),
+    recurringAnnouncements: Array.isArray(source.recurringAnnouncements) ? source.recurringAnnouncements.map((entry, index) => {
+      const item = record(entry, `Recurring announcement ${index + 1}`);
+      const message = text(item.message, `Recurring announcement ${index + 1} message`, { minimum: 1, maximum: announcementMaximum * 2 });
+      if (codePointLength(message) > announcementMaximum) fail(400, 'invalid_settings', 'Recurring announcement message is too long.');
+      return { enabled: flag(item.enabled, `Recurring announcement ${index + 1} enabled`), intervalMinutes: integer(item.intervalMinutes, `Recurring announcement ${index + 1} interval`, 60, 10_080), message };
+    }) : structuredClone(current.recurringAnnouncements ?? []),
     announcementTemplatesInitialized: true,
   };
 }
@@ -376,6 +385,8 @@ export function projectManagedSettings(installation, {
         allowRawRcon: Boolean(runtime.moderation?.allowRawRcon),
         rawRconAllowlist: [...(runtime.moderation?.rawRconAllowlist ?? [])],
         announcementTemplates: { ...(runtime.moderation?.announcementTemplates ?? {}) },
+        discordInviteUrl: runtime.moderation?.discordInviteUrl ?? '',
+        recurringAnnouncements: structuredClone(runtime.moderation?.recurringAnnouncements ?? []),
       },
     },
   };
