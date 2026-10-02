@@ -3466,8 +3466,8 @@ dialog::backdrop {
   .settings-console-policy { grid-template-columns: 1fr; }
   .settings-field.full { grid-column: auto; }
   .settings-change-bar { align-items: stretch; flex-direction: column; }
-  .settings-change-bar > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
-  .settings-change-bar button { width: 100%; }
+  .settings-change-bar > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-change-bar button { width: 100%; min-width: 0; white-space: normal; }
   .staff-record-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .staff-record-columns { grid-template-columns: 1fr; }
   .dialog-footer { display: grid; grid-template-columns: 1fr 1fr; }

@@ -125,13 +125,15 @@ async function screenshot(page, name) {
 }
 
 test('rapid item searches debounce without shrinking the modal or replacing the search field', async t => {
-  const { page, itemRequests } = await dashboard(t);
+  const { page, itemRequests } = await dashboard(t, { clock: true });
   await openGrant(page);
   const search = page.locator('#action-dialog input[role="combobox"]');
   await expect(page.locator('#action-dialog .combobox-option').first()).toBeVisible();
   await search.focus();
   await expect(page.locator('#action-dialog .combobox-results')).toHaveAttribute('aria-busy', 'false');
   await search.evaluate(node => { node.dataset.qaIdentity = 'persistent-search'; });
+  // Keep the typing cadence independent of host load and browser RPC latency.
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
   itemRequests.length = 0;
   await page.evaluate(() => {
     window.grantBounds = [];
@@ -141,9 +143,14 @@ test('rapid item searches debounce without shrinking the modal or replacing the 
       window.grantBounds.push({ top: dialog.top, height: dialog.height, listHeight: list.height });
     }, 10);
   });
-  await search.pressSequentially('Stone', { delay: 20 });
+  for (const character of 'Stone') {
+    await search.press(character);
+    await page.clock.runFor(20);
+  }
+  assert.equal(itemRequests.length, 0, 'the catalog waits until the typing burst ends');
+  await page.clock.runFor(250);
   await expect(page.locator('#action-dialog .combobox-option').filter({ hasText: 'Stone' })).toBeVisible();
-  await page.waitForTimeout(250);
+  await page.clock.runFor(20);
   const bounds = await page.evaluate(() => { clearInterval(window.grantSample); return window.grantBounds; });
   assert.equal(itemRequests.length, 1, 'one catalog request after a typing burst');
   assert.equal(itemRequests[0].query, 'Stone');

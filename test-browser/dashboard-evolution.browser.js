@@ -252,7 +252,19 @@ test('mobile quick actions coexist with dirty drafts without horizontal overflow
   await page.locator('#settings-map-bulk-disable').click();
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `no horizontal overflow at ${width}px`);
+    const overflow = await page.evaluate(() => ({
+      viewport: innerWidth, document: document.documentElement.scrollWidth,
+      elements: Array.from(document.body.querySelectorAll('*')).filter(node => {
+        const rect = node.getBoundingClientRect();
+        return rect.width && rect.right > innerWidth + 1;
+      }).slice(0, 12).map(node => ({ tag: node.tagName, id: node.id, className: node.className, right: node.getBoundingClientRect().right })),
+    }));
+    assert.ok(overflow.document <= overflow.viewport + 1, `no horizontal overflow at ${width}px: ${JSON.stringify(overflow)}`);
+    assert.ok(await page.locator('#settings-review').evaluate(node => {
+      const button = node.getBoundingClientRect();
+      const bar = node.closest('#settings-change-bar').getBoundingClientRect();
+      return button.right <= bar.right && node.scrollWidth <= node.clientWidth + 1;
+    }), 'review label wraps inside its action bar without clipping');
     if (width <= 390) {
       const quick = page.locator('#mobile-quick-actions');
       await expect(quick).toBeVisible();
