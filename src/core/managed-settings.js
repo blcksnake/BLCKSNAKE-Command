@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { isPrivateNetworkAddress } from '../adapters/rcon/source-rcon.js';
-import { applyDefaults } from '../config.js';
+import { applyDefaults, DEFAULT_ANNOUNCEMENT_TEMPLATES } from '../config.js';
+import { TEMPLATE_CATEGORIES, duplicateRconEndpoint, workflowPresets } from './workflow-presets.js';
 import { announcementMessageMaxLength, codePointLength } from './announcement-policy.js';
 import { encodeManagedTlsIdentity, materializeManagedConfig } from '../managed-instance.js';
 import { readManagedKeyFile } from '../security/managed-keystore.js';
@@ -19,7 +20,7 @@ const DISCORD_FIELDS = new Set([
   'enabled', 'token', 'clearToken', 'applicationId', 'guildId', 'chatChannelId', 'auditChannelId',
   'adminRoleIds', 'moderatorRoleIds', 'relayRoleIds', 'allowUnlinkedChat', 'registerCommands',
 ]);
-const MODERATION_FIELDS = new Set(['allowRawRcon', 'rawRconAllowlist', 'announcementTemplates', 'discordInviteUrl', 'recurringAnnouncements']);
+const MODERATION_FIELDS = new Set(['allowRawRcon', 'rawRconAllowlist', 'announcementTemplates', 'announcementTemplateCategories', 'discordInviteUrl', 'recurringAnnouncements']);
 const ANALYTICS_FIELDS = new Set(['enabled']);
 const SETTINGS_FIELDS = new Set(['clusterName', 'servers', 'discord', 'analytics', 'moderation']);
 const UPDATE_FIELDS = new Set([
@@ -238,10 +239,26 @@ function normalizeAnnouncementTemplates(raw, current, maximum) {
   return output;
 }
 
+function normalizeTemplateCategories(raw, current, templates) {
+  const source = raw === undefined ? current ?? {} : record(raw, 'Announcement template categories');
+  if (Object.keys(source).length > 32) fail(400, 'invalid_settings', 'Template categories are limited to 32 entries.');
+  const allowed = new Set(TEMPLATE_CATEGORIES.map(({ id }) => id));
+  const output = {};
+  for (const [name, category] of Object.entries(source)) {
+    if (!Object.hasOwn(templates, name)) {
+      if (raw !== undefined) fail(400, 'invalid_settings', 'Template categories must refer to existing templates.');
+      continue;
+    }
+    if (!allowed.has(category)) fail(400, 'invalid_settings', 'Choose a supported template category.');
+    output[name] = category;
+  }
+  return output;
+}
+
 function normalizeModeration(raw, current = {}, announcementMaximum = 400) {
   if (raw == null) return structuredClone(current);
   const source = exact(raw, MODERATION_FIELDS, 'Moderation settings', new Set([
-    'announcementTemplates', 'discordInviteUrl', 'recurringAnnouncements',
+    'announcementTemplates', 'announcementTemplateCategories', 'discordInviteUrl', 'recurringAnnouncements',
   ]));
   const allowRawRcon = flag(source.allowRawRcon, 'Allowlisted console enabled');
   const rawRconAllowlist = stringArray(source.rawRconAllowlist, 'Allowlisted console verbs', {
@@ -250,12 +267,16 @@ function normalizeModeration(raw, current = {}, announcementMaximum = 400) {
   if (allowRawRcon && rawRconAllowlist.length === 0) {
     fail(400, 'invalid_settings', 'The advanced console requires at least one allowlisted command verb.');
   }
+  const announcementTemplates = normalizeAnnouncementTemplates(
+    source.announcementTemplates, current.announcementTemplates, announcementMaximum,
+  );
   return {
     ...structuredClone(current),
     allowRawRcon,
     rawRconAllowlist,
-    announcementTemplates: normalizeAnnouncementTemplates(
-      source.announcementTemplates, current.announcementTemplates, announcementMaximum,
+    announcementTemplates,
+    announcementTemplateCategories: normalizeTemplateCategories(
+      source.announcementTemplateCategories, current.announcementTemplateCategories, announcementTemplates,
     ),
     discordInviteUrl: text(source.discordInviteUrl ?? current.discordInviteUrl ?? '', 'Discord invite URL', { maximum: 256 }),
     recurringAnnouncements: Array.isArray(source.recurringAnnouncements) ? source.recurringAnnouncements.map((entry, index) => {
@@ -284,6 +305,9 @@ function normalizeSettings(raw, currentRuntime) {
   }
   const passwords = servers.map((server) => server.password);
   if (new Set(passwords).size !== passwords.length) fail(400, 'rcon_password_reused', 'Each map must use a different RCON password.');
+  if (duplicateRconEndpoint(servers)) {
+    fail(400, 'duplicate_rcon_endpoint', 'Each map must use a different RCON port on the same host, including disabled maps.');
+  }
   return {
     clusterName: text(source.clusterName, 'Cluster name', { minimum: 1, maximum: 96 }),
     servers,
@@ -344,6 +368,7 @@ export function projectManagedSettings(installation, {
     revision: installation.revision,
     managed: true,
     restartRequired: installation.revision !== activeRevision,
+    workflowPresets: workflowPresets(DEFAULT_ANNOUNCEMENT_TEMPLATES),
     instance: {
       instanceId: config.instance.id,
       keystore: 'protected',
@@ -385,6 +410,7 @@ export function projectManagedSettings(installation, {
         allowRawRcon: Boolean(runtime.moderation?.allowRawRcon),
         rawRconAllowlist: [...(runtime.moderation?.rawRconAllowlist ?? [])],
         announcementTemplates: { ...(runtime.moderation?.announcementTemplates ?? {}) },
+        announcementTemplateCategories: { ...(runtime.moderation?.announcementTemplateCategories ?? {}) },
         discordInviteUrl: runtime.moderation?.discordInviteUrl ?? '',
         recurringAnnouncements: structuredClone(runtime.moderation?.recurringAnnouncements ?? []),
       },

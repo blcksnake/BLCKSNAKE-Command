@@ -1,0 +1,806 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-10-01",
+  "packages": [
+    {
+      "name": "Boss: Ragnarok - Nunatak - Alpha",
+      "description": "ASA Ragnarok. Level 90. Nunatak Alpha tribute set. Uses the reduced Basilosaurus Blubber requirement; not the ASE dual-boss arena.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          25
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          25
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          25
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          25
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          25
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          25
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          25
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          25
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          25
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Nunatak - Beta",
+      "description": "ASA Ragnarok. Level 80. Nunatak Beta tribute set. Uses the reduced Basilosaurus Blubber requirement; not the ASE dual-boss arena.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Nunatak - Gamma",
+      "description": "ASA Ragnarok. Level 70. Nunatak Gamma tribute set. Uses the reduced Basilosaurus Blubber requirement; not the ASE dual-boss arena.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Natrix The Devious - Alpha",
+      "description": "ASA Astraeos. Natrix The Devious Alpha tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Natrix The Devious - Beta",
+      "description": "ASA Astraeos. Natrix The Devious Beta tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Natrix The Devious - Gamma",
+      "description": "ASA Astraeos. Natrix The Devious Gamma tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Minotarchos - Standard",
+      "description": "ASA Astraeos. Minotarchos tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "megalodon-tooth-40cf44e9c372",
+          25
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          2
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          5
+        ],
+        [
+          "corrupted-nodule-63bf0e99c608",
+          25
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Grendel - Gamma",
+      "description": "ASA Valguero. Level 70. Grendel Gamma tribute set, replacing the ASE triple arena.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Grendel - Beta",
+      "description": "ASA Valguero. Level 80. Grendel Beta tribute set, replacing the ASE triple arena.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          8
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          8
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          8
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Grendel - Alpha",
+      "description": "ASA Valguero. Level 90. Grendel Alpha tribute set, replacing the ASE triple arena.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          15
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          15
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          2
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Hydraskos - Gamma",
+      "description": "ASA Astraeos. Hydraskos Gamma tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Hydraskos - Beta",
+      "description": "ASA Astraeos. Hydraskos Beta tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          5
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          5
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          5
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Hydraskos - Alpha",
+      "description": "ASA Astraeos. Hydraskos Alpha tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          2
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Thodes the Widowmaker - Gamma",
+      "description": "ASA Astraeos. Thodes the Widowmaker Gamma tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Thodes the Widowmaker - Beta",
+      "description": "ASA Astraeos. Thodes the Widowmaker Beta tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          5
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          5
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Thodes the Widowmaker - Alpha",
+      "description": "ASA Astraeos. Thodes the Widowmaker Alpha tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Manticore - Gamma",
+      "description": "ASA Astraeos. Manticore Gamma tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          2
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          2
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Manticore - Beta",
+      "description": "ASA Astraeos. Manticore Beta tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          10
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          10
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Manticore - Alpha",
+      "description": "ASA Astraeos. Manticore Alpha tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          20
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          20
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          20
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Kalydonios & Erymanthian - Standard",
+      "description": "ASA Astraeos. Kalydonios & Erymanthian Standard tribute ingredients. Server recipe overrides can change requirements.",
+      "starter": false,
+      "items": [
+        [
+          "corrupt-heart-6fd393e7c926",
+          2
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ],
+        [
+          "corrupted-nodule-63bf0e99c608",
+          25
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          5
+        ]
+      ]
+    }
+  ]
+}

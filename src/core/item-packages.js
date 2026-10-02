@@ -1,5 +1,19 @@
 import { getItem } from './item-catalog.js';
 import { normalizeWhitespace } from './sanitize.js';
+import recipeData from '../data/verified-boss-recipes.json' with { type: 'json' };
+
+const verifiedBossRecipes = new Map(recipeData.recipes.map((recipe) => [recipe.name, recipe]));
+
+function matchingBossRecipe(value) {
+  const recipe = verifiedBossRecipes.get(value?.name);
+  if (!recipe || !Array.isArray(value?.items) || value.items.length !== recipe.items.length) return null;
+  const quantities = new Map(recipe.items);
+  for (const line of value.items) {
+    if (line.quantity !== quantities.get(line.itemKey) || line.quality !== 0 || line.blueprint !== false) return null;
+    quantities.delete(line.itemKey);
+  }
+  return quantities.size === 0 ? recipe : null;
+}
 
 export const MAX_ITEM_PACKAGES = 128;
 export const MAX_PACKAGE_ITEMS = 50;
@@ -103,11 +117,54 @@ export function normalizePersistedItemPackages(value) {
   return output;
 }
 
+// Presentation metadata only: persisted package records and write inputs stay unchanged.
+// Restrict boss parsing to the bundled naming convention so arbitrary descriptions
+// cannot accidentally turn a shared grant into a boss package.
+export function itemPackageGrouping(value) {
+  const name = typeof value?.name === 'string' ? value.name : '';
+  const boss = /^Boss: (.+?) - (.+) - (Alpha|Beta|Gamma|Standard)$/u.exec(name);
+  if (boss) return { category: 'boss', map: boss[1], boss: boss[2], tier: boss[3].toLowerCase() };
+  const category = name.startsWith('Starter: ') ? 'starter' : name.startsWith('Freebie: ') ? 'freebie' : 'custom';
+  return { category, map: null, boss: null, tier: null };
+}
+
+export function itemPackageCompatibility(value) {
+  const group = itemPackageGrouping(value);
+  const names = { Island: 'The Island', Center: 'The Center', Scorched: 'Scorched Earth', 'Genesis 2': 'Genesis: Part 2' };
+  let games = ['ASA', 'ASE']; let verified = false;
+  if (group.category === 'boss') {
+    if ((group.map === 'Ragnarok' && group.boss === 'Nunatak')
+      || (group.map === 'Valguero' && group.boss === 'Grendel') || group.map === 'Astraeos') {
+      games = ['ASA']; verified = true;
+    } else if ((group.map === 'Ragnarok' && group.boss === 'Dragon + Manticore')
+      || (group.map === 'Valguero' && group.boss === 'Triple Arena')
+      || ['Crystal Isles', 'Lost Island', 'Fjordur', 'Genesis 2'].includes(group.map)) {
+      games = ['ASE']; verified = true;
+    }
+  }
+  for (const entry of value?.items ?? []) {
+    const compatibility = getItem(entry.itemKey)?.compatibility;
+    const knownGames = compatibility?.games ?? [];
+    if (knownGames.length || compatibility?.verified) games = games.filter((game) => knownGames.includes(game));
+  }
+  const recipe = matchingBossRecipe(value);
+  return { games, mapNames: group.map ? [names[group.map] ?? group.map] : [], verified,
+    recipeVerified: !!recipe, recipeGames: recipe ? [...recipe.games] : [],
+    recipeSource: recipe ? 'beacon-official-registry' : null };
+}
+
+export function packageCompatibleWithGame(value, gameContext) {
+  const game = typeof gameContext === 'string' ? gameContext : gameContext?.game;
+  return !['ASA', 'ASE'].includes(game) || itemPackageCompatibility(value).games.includes(game);
+}
+
 export function publicItemPackage(value) {
   const itemPackage = cloneItemPackage(value);
   if (!itemPackage) return null;
   return {
     ...itemPackage,
+    grouping: itemPackageGrouping(itemPackage),
+    compatibility: itemPackageCompatibility(itemPackage),
     items: itemPackage.items.map((entry) => {
       const item = getItem(entry.itemKey);
       return {

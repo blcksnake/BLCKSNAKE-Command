@@ -36,7 +36,7 @@ export const DASHBOARD_HTML = `<!doctype html>
       </form>
       <form id="setup-form" class="login-form" autocomplete="on" hidden>
         <label for="setup-username">Owner username</label>
-        <input id="setup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]{3,32}" aria-describedby="setup-username-help" required>
+        <input id="setup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9._\\x2d]{3,32}" aria-describedby="setup-username-help" required>
         <span class="field-help" id="setup-username-help">Use 3-32 letters, numbers, periods, underscores, or hyphens.</span>
         <label id="setup-token-label" for="setup-token" hidden>Setup token</label>
         <input id="setup-token" name="setup-token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="256" aria-describedby="setup-token-help" disabled hidden>
@@ -120,6 +120,7 @@ export const DASHBOARD_HTML = `<!doctype html>
           <p id="page-subtitle">Maps, players, and active issues</p>
         </div>
         <div class="topbar-actions">
+          <button class="icon-button command-search-trigger" id="command-search-open" type="button" aria-haspopup="dialog" aria-controls="command-search-dialog" aria-keyshortcuts="Control+k Meta+k">Search<span class="shortcut-hint" aria-hidden="true">Ctrl / ⌘ K</span></button>
           <label class="scope-select" for="server-scope"><span>Map scope</span>
             <select id="server-scope" aria-label="Filter dashboard by map"><option value="">Entire cluster</option></select>
           </label>
@@ -154,6 +155,8 @@ export const DASHBOARD_HTML = `<!doctype html>
           </div>
 
           <div class="section-heading compact-heading"><div><h2>Map servers</h2><p id="map-summary">Waiting for map status.</p></div></div>
+          <p class="map-health-summary" id="map-health-summary" role="status">Waiting for map health.</p>
+          <div class="player-insights" id="player-insights" aria-label="Live player insights"></div>
           <div class="map-grid" id="map-grid" aria-live="polite"><div class="surface skeleton-card"></div><div class="surface skeleton-card"></div></div>
         </section>
 
@@ -308,12 +311,14 @@ export const DASHBOARD_HTML = `<!doctype html>
             <button class="secondary-button" id="settings-restart-now" type="button">Restart now</button>
           </div>
 
+          <details class="settings-status-disclosure"><summary>Configuration status and security</summary>
           <div class="settings-status-grid" aria-label="Configuration status">
             <article class="settings-status-card surface"><span class="settings-status-mark" aria-hidden="true">IN</span><div><span>Instance security</span><strong id="settings-instance-status">Loading</strong><small id="settings-keystore-status">Checking managed storage</small></div></article>
             <article class="settings-status-card surface"><span class="settings-status-mark" aria-hidden="true">MP</span><div><span>Map connections</span><strong id="settings-map-status">--</strong><small id="settings-map-detail">Waiting for configuration</small></div></article>
             <article class="settings-status-card surface"><span class="settings-status-mark" aria-hidden="true">DC</span><div><span>Discord</span><strong id="settings-discord-status">--</strong><small id="settings-discord-detail">Waiting for configuration</small></div></article>
             <article class="settings-status-card surface"><span class="settings-status-mark" aria-hidden="true">CH</span><div><span>Local changes</span><strong id="settings-change-status">None</strong><small id="settings-revision-status">Configuration not loaded</small></div></article>
           </div>
+          </details>
 
           <form id="settings-form" class="settings-form" autocomplete="off">
             <div class="settings-layout">
@@ -339,6 +344,20 @@ export const DASHBOARD_HTML = `<!doctype html>
 
                 <section class="settings-card surface" id="settings-maps" aria-labelledby="settings-maps-heading">
                   <div class="settings-card-heading"><div><p class="eyebrow">Cluster maps</p><h3 id="settings-maps-heading">Map servers</h3><p>RCON controls each map. Profile import can securely resolve connected-player targeting.</p></div><button class="secondary-button" id="settings-add-server" type="button">Add map</button></div>
+                  <div class="settings-filter-bar" role="search" aria-label="Find configured maps">
+                    <label class="settings-field" for="settings-map-search"><span>Search maps</span><input id="settings-map-search" type="search" maxlength="128" placeholder="Name, ID, or host" autocomplete="off"></label>
+                    <label class="settings-field" for="settings-map-filter"><span>Connection state</span><select id="settings-map-filter"><option value="all">All maps</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label>
+                    <button type="button" class="quiet-button settings-filter-clear" id="settings-map-clear">Clear filters</button>
+                  </div>
+                  <p class="settings-results" id="settings-map-results" role="status" aria-live="polite"></p>
+                  <details class="bulk-workspace" id="settings-map-bulk-panel">
+                    <summary>Bulk map settings <span id="settings-map-bulk-count" role="status">0 selected</span></summary>
+                    <div class="settings-bulk-toolbar" id="settings-map-bulk" role="group" aria-label="Bulk map settings">
+                      <div class="bulk-selection"><button class="quiet-button" id="settings-map-bulk-select-visible" type="button">Select visible</button><button class="quiet-button" id="settings-map-bulk-clear" type="button">Clear selection</button></div>
+                      <div class="bulk-actions"><button class="secondary-button" id="settings-map-bulk-enable" type="button" disabled>Stage enabled</button><button class="secondary-button" id="settings-map-bulk-disable" type="button" disabled>Stage disabled</button><button class="danger-quiet-button" id="settings-map-bulk-remove" type="button" disabled>Remove selected</button></div>
+                      <p>Changes stay in your draft until Review &amp; apply. Filtering clears selections that become hidden.</p>
+                    </div>
+                  </details>
                   <div class="settings-server-list" id="settings-server-list" aria-live="polite"><div class="settings-loading"><span class="skeleton tall"></span><span class="skeleton tall"></span></div></div>
                 </section>
 
@@ -373,17 +392,40 @@ export const DASHBOARD_HTML = `<!doctype html>
                 <section class="settings-card surface" id="settings-templates" aria-labelledby="settings-templates-heading">
                   <div class="settings-card-heading"><div><p class="eyebrow">Staff messages</p><h3 id="settings-templates-heading">Broadcast templates</h3><p>Create reusable announcements for the whole cluster or one map.</p></div><button class="secondary-button" id="settings-add-template" type="button">Add template</button></div>
                   <div class="settings-template-actions"><button class="quiet-button" id="settings-add-starter-templates" type="button">Add missing starter templates</button><span>Up to 32 templates. Changes activate after Apply &amp; restart.</span></div>
+                  <div class="settings-filter-bar" role="search" aria-label="Find broadcast templates">
+                    <label class="settings-field" for="settings-template-search"><span>Search templates</span><input id="settings-template-search" type="search" maxlength="128" placeholder="Name or message" autocomplete="off"></label>
+                    <label class="settings-field" for="settings-template-category"><span>Category</span><select id="settings-template-category"><option value="all">All categories</option><option value="general">General</option><option value="maintenance">Maintenance</option><option value="events">Events</option><option value="community">Community</option><option value="rules">Rules</option></select></label>
+                    <button type="button" class="quiet-button settings-filter-clear" id="settings-template-clear">Clear filters</button>
+                  </div>
+                  <p class="settings-results" id="settings-template-results" role="status" aria-live="polite"></p>
+                  <details class="bulk-workspace" id="settings-template-bulk-panel">
+                    <summary>Bulk templates <span id="settings-template-bulk-count" role="status">0 selected</span></summary>
+                    <div class="settings-bulk-toolbar" id="settings-template-bulk" role="group" aria-label="Bulk template settings">
+                      <div class="bulk-selection"><button class="quiet-button" id="settings-template-bulk-select-visible" type="button">Select visible</button><button class="quiet-button" id="settings-template-bulk-clear" type="button">Clear selection</button></div>
+                      <div class="bulk-actions"><label class="settings-field" for="settings-template-bulk-category"><span>New category</span><select id="settings-template-bulk-category"><option value="general">General</option><option value="maintenance">Maintenance</option><option value="events">Events</option><option value="community">Community</option><option value="rules">Rules</option></select></label><button class="secondary-button" id="settings-template-bulk-apply" type="button" disabled>Stage category</button><button class="danger-quiet-button" id="settings-template-bulk-delete" type="button" disabled>Delete selected</button></div>
+                      <p>Changes stay in your draft until Review &amp; apply. Filtering clears selections that become hidden.</p>
+                    </div>
+                  </details>
                   <div class="settings-template-list" id="settings-template-list" aria-live="polite"></div>
-                  <div class="settings-field-grid" style="margin-top:16px">
+                  <details class="settings-advanced settings-reminder"><summary>Recurring reminder and Discord invite</summary>
+                  <div class="settings-field-grid">
                     <label class="settings-field full" for="settings-discord-invite"><span>Discord invite URL</span><input id="settings-discord-invite" type="url" maxlength="256" placeholder="https://discord.com/invite/example"><small>Use {discordInvite} in the reminder message to insert this link.</small></label>
                     <label class="settings-check"><input id="settings-recurring-enabled" type="checkbox"><span><strong>Repeat help reminder</strong><small>Send to connected ARK players and the Discord channel.</small></span></label>
                     <label class="settings-field" for="settings-recurring-interval"><span>Repeat every</span><select id="settings-recurring-interval"><option value="60">1 hour</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option></select></label>
                     <label class="settings-field full" for="settings-recurring-message"><span>Reminder message</span><textarea id="settings-recurring-message" rows="2" maxlength="400">Need help? Join {discordInvite} or type !cc help.</textarea></label>
                   </div>
+                  </details>
                 </section>
 
                 <section class="settings-card surface" id="settings-packages" aria-labelledby="settings-packages-heading">
                   <div class="settings-card-heading"><div><p class="eyebrow">Shared grants</p><h3 id="settings-packages-heading">Item packages</h3><p>Build reusable starter, boss-fight, and event bundles. Changes take effect immediately.</p></div><button class="secondary-button" id="settings-add-package" type="button">Create package</button></div>
+                  <div class="settings-filter-bar" role="search" aria-label="Find item packages">
+                    <label class="settings-field" for="settings-package-search"><span>Search packages</span><input id="settings-package-search" type="search" maxlength="128" placeholder="Name or description" autocomplete="off"></label>
+                    <label class="settings-field" for="settings-package-filter"><span>Package type</span><select id="settings-package-filter"><option value="all">All packages</option><option value="shared">Shared grants</option><option value="starter">First join</option><option value="boss">Boss packages</option><option value="disabled">Disabled</option></select></label>
+                    <button type="button" class="quiet-button settings-filter-clear" id="settings-package-clear">Clear filters</button>
+                  </div>
+                  <p class="settings-results" id="settings-package-results" role="status" aria-live="polite"></p>
+                  <label class="settings-field package-group-control" for="settings-package-group"><span>Group packages</span><select id="settings-package-group"><option value="none">Flat list</option><option value="map">By map / boss</option><option value="tier">By boss difficulty</option></select></label>
                   <div class="settings-package-list" id="settings-package-list" aria-live="polite"><div class="settings-package-empty empty-copy">No item packages configured.</div></div>
                 </section>
 
@@ -561,7 +603,7 @@ export const DASHBOARD_HTML = `<!doctype html>
         <button class="icon-button close-dialog" type="button" aria-label="Close operator creation">Close</button>
       </header>
       <div class="form-grid single-column">
-        <label class="full" for="operator-username"><span>Username</span><input id="operator-username" name="username" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]{3,32}" required></label>
+        <label class="full" for="operator-username"><span>Username</span><input id="operator-username" name="username" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[A-Za-z0-9._\\x2d]{3,32}" required></label>
         <label class="full" for="operator-role-select"><span>Role</span><select id="operator-role-select" name="role" required><option value="moderator" selected>Moderator</option><option value="admin">Administrator</option></select></label>
       </div>
       <p class="form-error" id="create-operator-error" role="alert" hidden></p>
@@ -625,6 +667,23 @@ export const DASHBOARD_HTML = `<!doctype html>
     </div>
   </dialog>
 
+  <dialog class="command-search-dialog" id="command-search-dialog" aria-labelledby="command-search-title">
+    <div class="dialog-shell">
+      <header class="dialog-header"><div><h2 id="command-search-title">Search and go</h2><p>Jump to a section, map, template, package, or permitted action.</p></div><button class="icon-button close-dialog" id="command-search-close" type="button">Close</button></header>
+      <div class="command-search-body">
+        <label class="settings-field" for="command-search-input"><span>Search dashboard</span><input id="command-search-input" type="search" maxlength="128" autocomplete="off" spellcheck="false" aria-describedby="command-search-status" placeholder="Map, template, package, or section"></label>
+        <p id="command-search-status" class="settings-results" role="status" aria-live="polite"></p>
+        <div id="command-search-results" class="command-search-results" aria-label="Search results"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <nav class="mobile-quick-actions" id="mobile-quick-actions" aria-label="Quick actions" hidden>
+    <button type="button" data-quick-action="search" aria-haspopup="dialog" aria-controls="command-search-dialog">Search</button>
+    <button type="button" data-quick-action="players">Players</button>
+    <button type="button" data-quick-action="operations">Operations</button>
+    <button type="button" data-quick-action="maps" data-admin-only hidden>Maps</button>
+  </nav>
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false"></div>
 </body>
 </html>`;

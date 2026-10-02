@@ -1,0 +1,3092 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-10-01",
+  "sourceUrl": "https://api.usebeacon.app/v4/deltas?version=7",
+  "archiveUrl": "https://updates.usebeacon.app/v7/Complete.beacondata?bcdn_filename=Complete.beacondata&t=1790875964",
+  "sourceSha256": "3df600df3fd02b294c2ae12316c428b28602aee816601010634b9162f0c81bad",
+  "correctedBundledNames": [
+    "Boss: Aberration - Rockwell - Alpha",
+    "Boss: Aberration - Rockwell - Beta",
+    "Boss: Center - Dual Arena - Alpha",
+    "Boss: Center - Dual Arena - Beta",
+    "Boss: Center - Dual Arena - Gamma",
+    "Boss: Crystal Isles - Wyvern Queen - Alpha",
+    "Boss: Crystal Isles - Wyvern Queen - Beta",
+    "Boss: Crystal Isles - Wyvern Queen - Gamma",
+    "Boss: Extinction - Desert Titan - Standard",
+    "Boss: Extinction - Forest Titan - Standard",
+    "Boss: Extinction - King Titan - Alpha",
+    "Boss: Extinction - King Titan - Beta",
+    "Boss: Extinction - King Titan - Gamma",
+    "Boss: Island - Dragon - Alpha",
+    "Boss: Island - Dragon - Beta",
+    "Boss: Island - Megapithecus - Alpha",
+    "Boss: Island - Megapithecus - Beta",
+    "Boss: Island - Overseer - Alpha",
+    "Boss: Ragnarok - Dragon + Manticore - Alpha",
+    "Boss: Ragnarok - Dragon + Manticore - Beta",
+    "Boss: Ragnarok - Dragon + Manticore - Gamma",
+    "Boss: Scorched - Manticore - Alpha",
+    "Boss: Scorched - Manticore - Beta",
+    "Boss: Scorched - Manticore - Gamma",
+    "Boss: Valguero - Triple Arena - Alpha",
+    "Boss: Valguero - Triple Arena - Beta",
+    "Boss: Valguero - Triple Arena - Gamma"
+  ],
+  "unverifiedBundledNames": [
+    "Boss: Genesis 2 - Rockwell Prime - Alpha",
+    "Boss: Genesis 2 - Rockwell Prime - Beta",
+    "Boss: Genesis 2 - Rockwell Prime - Gamma"
+  ],
+  "recipes": [
+    {
+      "name": "Boss: Aberration - Rockwell - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "b26f1ef8-b22c-5aaf-9b55-4264d7bea1be",
+          "path": "/Game/Aberration/CoreBlueprints/Items/PrimalItem_BossTribute_Aberration_Hard.PrimalItem_BossTribute_Aberration_Hard"
+        },
+        "ASE": {
+          "id": "bf2ff4f8-4409-452f-b289-44ecf96211f9",
+          "path": "/Game/Aberration/CoreBlueprints/Items/PrimalItem_BossTribute_Aberration_Hard.PrimalItem_BossTribute_Aberration_Hard"
+        }
+      },
+      "items": [
+        [
+          "nameless-venom-53df77a1a231",
+          20
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          8
+        ],
+        [
+          "alpha-basilisk-fang-be3eae1d1277",
+          1
+        ],
+        [
+          "alpha-karkinos-claw-677a93994dab",
+          1
+        ],
+        [
+          "alpha-reaper-king-barb-54bc36cc54fb",
+          1
+        ],
+        [
+          "rock-drake-feather-e2ab52855239",
+          7
+        ],
+        [
+          "reaper-pheromone-gland-b958998ca460",
+          7
+        ],
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Aberration - Rockwell - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "7ebd768a-8d3c-52f9-8f02-87490cb0dd5e",
+          "path": "/Game/Aberration/CoreBlueprints/Items/PrimalItem_BossTribute_Aberration_Medium.PrimalItem_BossTribute_Aberration_Medium"
+        },
+        "ASE": {
+          "id": "dbf08d94-bee8-4784-a6ab-8ea4d12e786d",
+          "path": "/Game/Aberration/CoreBlueprints/Items/PrimalItem_BossTribute_Aberration_Medium.PrimalItem_BossTribute_Aberration_Medium"
+        }
+      },
+      "items": [
+        [
+          "nameless-venom-53df77a1a231",
+          12
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          4
+        ],
+        [
+          "rock-drake-feather-e2ab52855239",
+          2
+        ],
+        [
+          "reaper-pheromone-gland-b958998ca460",
+          2
+        ],
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Aberration - Rockwell - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "7bc13fef-0311-5cb6-9feb-042145a3d5af",
+          "path": "/Game/Aberration/CoreBlueprints/Items/PrimalItem_BossTribute_Aberration_Easy.PrimalItem_BossTribute_Aberration_Easy"
+        },
+        "ASE": {
+          "id": "172e502d-ccbe-476d-9d35-5b3bf20cd86f",
+          "path": "/Game/Aberration/CoreBlueprints/Items/PrimalItem_BossTribute_Aberration_Easy.PrimalItem_BossTribute_Aberration_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Center - Dual Arena - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "c964459c-e795-54c5-8871-65cf35eba31b",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_TheCenter_Hard.PrimalItem_BossTribute_TheCenter_Hard"
+        },
+        "ASE": {
+          "id": "921c40d4-c8c6-4608-937a-dc57cdbfe17d",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_TheCenter_Hard.PrimalItem_BossTribute_TheCenter_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          25
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          25
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          25
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          25
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          25
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          25
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          25
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          25
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          25
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          25
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Center - Dual Arena - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "9591cad3-64b3-500d-9c6e-7e6edb7f9fcf",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_TheCenter_Medium.PrimalItem_BossTribute_TheCenter_Medium"
+        },
+        "ASE": {
+          "id": "1c113b28-0ef5-4dd3-8cf9-de4aebcdad2a",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_TheCenter_Medium.PrimalItem_BossTribute_TheCenter_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Center - Dual Arena - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "e795e7e1-91b2-5393-9a33-05d9880a03db",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_TheCenter.PrimalItem_BossTribute_TheCenter"
+        },
+        "ASE": {
+          "id": "dfa22dea-91a0-44cf-afb9-7668704ef6d8",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_TheCenter.PrimalItem_BossTribute_TheCenter"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Crystal Isles - Wyvern Queen - Alpha",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "01e6e7f7-93bf-4e03-bbcf-6321f58c951a",
+          "path": "/Game/Mods/CrystalIsles/Assets/Dinos/CIBoss/Arena/PrimalItem_BossTribute_CIBoss_Hard.PrimalItem_BossTribute_CIBoss_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-stalker-5a6559ec752e",
+          1
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "crystal-talon-4d382eba50a0",
+          15
+        ],
+        [
+          "artifact-of-the-lost-f98d3c277d28",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "artifact-of-the-shadows-475043ccbfdc",
+          1
+        ],
+        [
+          "alpha-crystal-talon-7f63d604fdb6",
+          5
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "primal-crystal-ae96ce43177d",
+          30
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Crystal Isles - Wyvern Queen - Beta",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "a639d6be-0522-477d-b84b-407ff9896fba",
+          "path": "/Game/Mods/CrystalIsles/Assets/Dinos/CIBoss/Arena/PrimalItem_BossTribute_CIBoss_Medium.PrimalItem_BossTribute_CIBoss_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "crystal-talon-4d382eba50a0",
+          10
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-depths-00914c22312b",
+          1
+        ],
+        [
+          "alpha-crystal-talon-7f63d604fdb6",
+          3
+        ],
+        [
+          "primal-crystal-ae96ce43177d",
+          20
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Crystal Isles - Wyvern Queen - Gamma",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "40e60eca-6302-4124-9b34-ac8b6b0b3ad9",
+          "path": "/Game/Mods/CrystalIsles/Assets/Dinos/CIBoss/Arena/PrimalItem_BossTribute_CIBoss_Easy.PrimalItem_BossTribute_CIBoss_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "crystal-talon-4d382eba50a0",
+          5
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "alpha-crystal-talon-7f63d604fdb6",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "primal-crystal-ae96ce43177d",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - Desert Titan - Standard",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "a4c69b01-c891-51a8-9580-262202d1f6ce",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_DesertKaiju.PrimalItem_BossTribute_DesertKaiju"
+        },
+        "ASE": {
+          "id": "66f67694-51e3-49f7-af27-4e36425d2199",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_DesertKaiju.PrimalItem_BossTribute_DesertKaiju"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-chaos-dc3b23791c83",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          100
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - Forest Titan - Standard",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "24015871-f299-56e2-96c1-8728216b23a2",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_ForestKaiju.PrimalItem_BossTribute_ForestKaiju"
+        },
+        "ASE": {
+          "id": "e910f5e1-25b4-4b94-a13b-613a33b2e855",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_ForestKaiju.PrimalItem_BossTribute_ForestKaiju"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-growth-aba554884f61",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          100
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - Ice Titan - Standard",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "0006724d-da63-5d80-a646-99969cb6aeea",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_IceKaiju.PrimalItem_BossTribute_IceKaiju"
+        },
+        "ASE": {
+          "id": "8fc14a25-95be-4409-9de7-e03c1aafbb3a",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_IceKaiju.PrimalItem_BossTribute_IceKaiju"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-void-f1577c0dfd87",
+          1
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          100
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - King Titan - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "f75659c0-73d9-5436-a43f-35008605ca9a",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_KingKaijuHard.PrimalItem_BossTribute_KingKaijuHard"
+        },
+        "ASE": {
+          "id": "60fd4c6e-4d26-4b6e-a7bd-155b0db662d1",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_KingKaijuHard.PrimalItem_BossTribute_KingKaijuHard"
+        }
+      },
+      "items": [
+        [
+          "corrupt-heart-6fd393e7c926",
+          300
+        ],
+        [
+          "desert-titan-trophy-ced982638fbc",
+          1
+        ],
+        [
+          "forest-titan-trophy-e76f6a9ddb06",
+          1
+        ],
+        [
+          "ice-titan-trophy-730454a4b2d7",
+          1
+        ],
+        [
+          "king-titan-trophy-beta-847a9dc4b3ae",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          20
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          20
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          20
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - King Titan - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "fe07e7f9-be0d-515e-8848-6f1bb365300b",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_KingKaijuMedium.PrimalItem_BossTribute_KingKaijuMedium"
+        },
+        "ASE": {
+          "id": "b4744802-58e6-41c7-b4d1-dacd5e017bbf",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_KingKaijuMedium.PrimalItem_BossTribute_KingKaijuMedium"
+        }
+      },
+      "items": [
+        [
+          "corrupt-heart-6fd393e7c926",
+          300
+        ],
+        [
+          "desert-titan-trophy-ced982638fbc",
+          1
+        ],
+        [
+          "forest-titan-trophy-e76f6a9ddb06",
+          1
+        ],
+        [
+          "ice-titan-trophy-730454a4b2d7",
+          1
+        ],
+        [
+          "king-titan-trophy-gamma-28000028ac67",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          20
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Extinction - King Titan - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "bf4c01c0-6e1a-5176-9d92-8037aa58845b",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_KingKaijuEasy.PrimalItem_BossTribute_KingKaijuEasy"
+        },
+        "ASE": {
+          "id": "6d693e76-66c4-4fbe-97c8-ef844b3bed7f",
+          "path": "/Game/Extinction/CoreBlueprints/Items/Tribute/PrimalItem_BossTribute_KingKaijuEasy.PrimalItem_BossTribute_KingKaijuEasy"
+        }
+      },
+      "items": [
+        [
+          "corrupt-heart-6fd393e7c926",
+          150
+        ],
+        [
+          "desert-titan-trophy-ced982638fbc",
+          1
+        ],
+        [
+          "forest-titan-trophy-e76f6a9ddb06",
+          1
+        ],
+        [
+          "ice-titan-trophy-730454a4b2d7",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Beyla - Standard",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "bb82455c-d34f-43e8-8343-c80e7cbe332d",
+          "path": "/Game/Mods/FjordurOfficial/Assets/Teleports/BossTributes/PrimalItem_BossTribute_Beyla.PrimalItem_BossTribute_Beyla"
+        }
+      },
+      "items": [
+        [
+          "runestone-68a999834395",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Fenrisúlfr - Alpha",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "faba7da8-8e9a-4957-99aa-e7018eb526da",
+          "path": "/Game/Fjordur/Boss/Arena/PrimalItem_BossTribute_FenrirBoss_Hard.PrimalItem_BossTribute_FenrirBoss_Hard"
+        }
+      },
+      "items": [
+        [
+          "alpha-broodmother-trophy-288d57a1abf6",
+          1
+        ],
+        [
+          "alpha-megapithecus-trophy-06092857cf1e",
+          1
+        ],
+        [
+          "alpha-dragon-trophy-3e148a647349",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Fenrisúlfr - Beta",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "6b89d8ad-b076-41a9-94bd-a57cb4181c5a",
+          "path": "/Game/Fjordur/Boss/Arena/PrimalItem_BossTribute_FenrirBoss_Medium.PrimalItem_BossTribute_FenrirBoss_Medium"
+        }
+      },
+      "items": [
+        [
+          "beta-broodmother-trophy-47c0f47be43c",
+          1
+        ],
+        [
+          "beta-megapithecus-trophy-891338af9c18",
+          1
+        ],
+        [
+          "beta-dragon-trophy-f85daef4d659",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Fenrisúlfr - Gamma",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "172b4fe6-4bf8-4164-87eb-2ba53f542e8c",
+          "path": "/Game/Fjordur/Boss/Arena/PrimalItem_BossTribute_FenrirBoss_Easy.PrimalItem_BossTribute_FenrirBoss_Easy"
+        }
+      },
+      "items": [
+        [
+          "gamma-broodmother-trophy-da3911f639fd",
+          1
+        ],
+        [
+          "gamma-megapithecus-trophy-9c1092cdb1d6",
+          1
+        ],
+        [
+          "gamma-dragon-trophy-4f0392172c27",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Hati + Sköll - Standard",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "afca84e8-5bac-44ed-b521-f1d9bebc16b5",
+          "path": "/Game/Mods/FjordurOfficial/Assets/Teleports/BossTributes/PrimalItem_BossTribute_HatiAndSkoll.PrimalItem_BossTribute_HatiAndSkoll"
+        }
+      },
+      "items": [
+        [
+          "runestone-68a999834395",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Fjordur - Steinbjörn - Standard",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "380dab5e-a910-45f5-831f-edece50e755f",
+          "path": "/Game/Mods/FjordurOfficial/Assets/Teleports/BossTributes/PrimalItem_BossTribute_Steinbjorn.PrimalItem_BossTribute_Steinbjorn"
+        }
+      },
+      "items": [
+        [
+          "runestone-68a999834395",
+          30
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Broodmother - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "c749601d-06d4-5206-91a8-de6f203f7c73",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Spider_Hard.PrimalItem_BossTribute_Spider_Hard"
+        },
+        "ASE": {
+          "id": "f8b6e600-0fb2-4ab9-8b82-d7d500b0782d",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Spider_Hard.PrimalItem_BossTribute_Spider_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Broodmother - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "61a39abc-c9e2-59f1-9bb1-3e116b55d86c",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Spider_Medium.PrimalItem_BossTribute_Spider_Medium"
+        },
+        "ASE": {
+          "id": "05b471b0-a542-4439-9b8f-7519a3eb0ac9",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Spider_Medium.PrimalItem_BossTribute_Spider_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Broodmother - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "97140c5b-1883-5115-99ce-3fad70c458d6",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Spider_Easy.PrimalItem_BossTribute_Spider_Easy"
+        },
+        "ASE": {
+          "id": "85fc3a3e-f54a-4ebf-affe-40d073c9fb66",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Spider_Easy.PrimalItem_BossTribute_Spider_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Dragon - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "52e762ff-a7bd-53cc-8c11-470b1e8820e3",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Dragon_Hard.PrimalItem_BossTribute_Dragon_Hard"
+        },
+        "ASE": {
+          "id": "fa9a0ffd-f4a6-4f67-a277-ac4c49037b4c",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Dragon_Hard.PrimalItem_BossTribute_Dragon_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          2
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Dragon - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "edce8a2d-216f-5bef-a4fe-0b20df2f697c",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Dragon_Medium.PrimalItem_BossTribute_Dragon_Medium"
+        },
+        "ASE": {
+          "id": "d56da162-e40d-461d-a5b6-a36ba8743fbf",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Dragon_Medium.PrimalItem_BossTribute_Dragon_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          5
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          5
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Dragon - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "63463a53-7362-5a44-b65d-e84eed93fbe0",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Dragon_Easy.PrimalItem_BossTribute_Dragon_Easy"
+        },
+        "ASE": {
+          "id": "7292e5fd-be44-4437-8269-7f86ab8d640c",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Dragon_Easy.PrimalItem_BossTribute_Dragon_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Megapithecus - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "37558997-a397-554a-a47d-b3f688311d05",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Gorilla_Hard.PrimalItem_BossTribute_Gorilla_Hard"
+        },
+        "ASE": {
+          "id": "e75f08a9-b4e9-4ac6-98ff-b34056006bf6",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Gorilla_Hard.PrimalItem_BossTribute_Gorilla_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Megapithecus - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "336c4407-06df-5e6a-b2ef-aa426da579dd",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Gorilla_Medium.PrimalItem_BossTribute_Gorilla_Medium"
+        },
+        "ASE": {
+          "id": "6db0a1e3-a44d-4637-81fd-88d695d81d22",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Gorilla_Medium.PrimalItem_BossTribute_Gorilla_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Megapithecus - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "a1c78371-8906-59a0-af0b-30dc75d8b892",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Gorilla_Easy.PrimalItem_BossTribute_Gorilla_Easy"
+        },
+        "ASE": {
+          "id": "1adb4e75-bd5f-47e6-a65a-193ed50354b2",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Gorilla_Easy.PrimalItem_BossTribute_Gorilla_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Overseer - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "7190a8af-afb5-52d9-ac85-05b271b6fc8d",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_DungeonEntrance_TekCave_Hard.PrimalItem_DungeonEntrance_TekCave_Hard"
+        },
+        "ASE": {
+          "id": "bf3c93af-3c3a-46e6-861e-5db78da100c3",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_DungeonEntrance_TekCave_Hard.PrimalItem_DungeonEntrance_TekCave_Hard"
+        }
+      },
+      "items": [
+        [
+          "alpha-broodmother-trophy-288d57a1abf6",
+          1
+        ],
+        [
+          "alpha-dragon-trophy-3e148a647349",
+          1
+        ],
+        [
+          "alpha-megapithecus-trophy-06092857cf1e",
+          1
+        ],
+        [
+          "alpha-carnotaurus-arm-e550e3d44147",
+          1
+        ],
+        [
+          "alpha-leedsichthys-blubber-a810f33b822d",
+          1
+        ],
+        [
+          "alpha-megalodon-fin-4d4252b75555",
+          1
+        ],
+        [
+          "alpha-mosasaur-tooth-da1b4e057791",
+          1
+        ],
+        [
+          "alpha-raptor-claw-def6b5b3b474",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          1
+        ],
+        [
+          "alpha-tusoteuthis-eye-a8616cbf82aa",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Overseer - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "24ec8f98-3ed8-5bd9-9356-0a273754748d",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_DungeonEntrance_TekCave_Medium.PrimalItem_DungeonEntrance_TekCave_Medium"
+        },
+        "ASE": {
+          "id": "eff29b6e-02fc-40f7-ae31-464dd75a5eed",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_DungeonEntrance_TekCave_Medium.PrimalItem_DungeonEntrance_TekCave_Medium"
+        }
+      },
+      "items": [
+        [
+          "beta-broodmother-trophy-47c0f47be43c",
+          1
+        ],
+        [
+          "beta-dragon-trophy-f85daef4d659",
+          1
+        ],
+        [
+          "beta-megapithecus-trophy-891338af9c18",
+          1
+        ],
+        [
+          "alpha-carnotaurus-arm-e550e3d44147",
+          1
+        ],
+        [
+          "alpha-raptor-claw-def6b5b3b474",
+          1
+        ],
+        [
+          "alpha-tyrannosaur-tooth-b0a318a2ba94",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Island - Overseer - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "c9b61c00-e283-57ee-a052-0c0249d9b38b",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_DungeonEntrance_TekCave_Easy.PrimalItem_DungeonEntrance_TekCave_Easy"
+        },
+        "ASE": {
+          "id": "5c3cc742-f6e5-40da-948d-64d5797d7c1b",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_DungeonEntrance_TekCave_Easy.PrimalItem_DungeonEntrance_TekCave_Easy"
+        }
+      },
+      "items": [
+        [
+          "gamma-broodmother-trophy-da3911f639fd",
+          1
+        ],
+        [
+          "gamma-dragon-trophy-4f0392172c27",
+          1
+        ],
+        [
+          "gamma-megapithecus-trophy-9c1092cdb1d6",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Lost Island - Dinopithecus - Alpha",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "4ba8ff1a-8905-44f9-9e07-e764dd1c74e6",
+          "path": "/Game/LostIsland/Boss/Arena/PrimalItem_BossTribute_LostIsland_Hard.PrimalItem_BossTribute_LostIsland_Hard"
+        }
+      },
+      "items": [
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          2
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          2
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          2
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          2
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Lost Island - Dinopithecus - Beta",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "0b8a1935-3ceb-49c8-9fa7-8f321a842b44",
+          "path": "/Game/LostIsland/Boss/Arena/PrimalItem_BossTribute_LostIsland_Medium.PrimalItem_BossTribute_LostIsland_Medium"
+        }
+      },
+      "items": [
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          5
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          2
+        ],
+        [
+          "basilisk-scale-364ca50b012b",
+          2
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Lost Island - Dinopithecus - Gamma",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "2644d8b2-8e42-476c-b88a-437b259e92cd",
+          "path": "/Game/LostIsland/Boss/Arena/PrimalItem_BossTribute_LostIsland_Easy.PrimalItem_BossTribute_LostIsland_Easy"
+        }
+      },
+      "items": [
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          3
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          3
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Dragon + Manticore - Alpha",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "c92efb28-aaa4-4223-89a4-03cb6a8ef86c",
+          "path": "/Game/Mods/Ragnarok/Custom_Assets/Bosses/PrimalItem_BossTribute_Ragnarok_Hard.PrimalItem_BossTribute_Ragnarok_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          25
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          25
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          25
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          25
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          25
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          25
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          25
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          25
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          25
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          25
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Dragon + Manticore - Beta",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "0e477837-69fa-4294-bbff-ca8dbf7f81f2",
+          "path": "/Game/Mods/Ragnarok/Custom_Assets/Bosses/PrimalItem_BossTribute_Ragnarok_Medium.PrimalItem_BossTribute_Ragnarok_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Dragon + Manticore - Gamma",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "8ac3b138-adc4-4e6b-96d7-74dced15a572",
+          "path": "/Game/Mods/Ragnarok/Custom_Assets/Bosses/PrimalItem_BossTribute_Ragnarok.PrimalItem_BossTribute_Ragnarok"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Scorched - Manticore - Alpha",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "1107c917-3a5a-5704-906c-df8a100b7692",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Manticore_Hard.PrimalItem_BossTribute_Manticore_Hard"
+        },
+        "ASE": {
+          "id": "d419111b-a69a-462e-92d7-381358c2f1be",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Manticore_Hard.PrimalItem_BossTribute_Manticore_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          20
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          20
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          20
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Scorched - Manticore - Beta",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "ec28ab9c-5fa7-59c0-9a57-5e0764ebf8c0",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Manticore_Medium.PrimalItem_BossTribute_Manticore_Medium"
+        },
+        "ASE": {
+          "id": "e4570b9c-a409-44e3-9da4-59529dd126b4",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Manticore_Medium.PrimalItem_BossTribute_Manticore_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          10
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Scorched - Manticore - Gamma",
+      "games": [
+        "ASA",
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "908872a0-4f6d-5e26-bdfe-5428832c867f",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Manticore_Easy.PrimalItem_BossTribute_Manticore_Easy"
+        },
+        "ASE": {
+          "id": "fef5e1b8-3643-43ff-a771-03ea61ccb31c",
+          "path": "/Game/PrimalEarth/CoreBlueprints/Items/Armor/Cloth/PrimalItem_BossTribute_Manticore_Easy.PrimalItem_BossTribute_Manticore_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          2
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          2
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Triple Arena - Alpha",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "ecb522a0-d5aa-4619-b4ca-a9d548cd3b76",
+          "path": "/Game/Mods/Valguero/Assets/CoreBlueprints/Boss/PrimalItem_BossTribute_ValThreeBoss_Hard.PrimalItem_BossTribute_ValThreeBoss_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          15
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          15
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          2
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Triple Arena - Beta",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "32da73ac-aa27-4b5f-96bb-fd25641508fd",
+          "path": "/Game/Mods/Valguero/Assets/CoreBlueprints/Boss/PrimalItem_BossTribute_ValThreeBoss_Medium.PrimalItem_BossTribute_ValThreeBoss_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          8
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          8
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          8
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Triple Arena - Gamma",
+      "games": [
+        "ASE"
+      ],
+      "sourceRecipes": {
+        "ASE": {
+          "id": "1cb792d0-8b8f-4572-9729-cbb7ccea589b",
+          "path": "/Game/Mods/Valguero/Assets/CoreBlueprints/Boss/PrimalItem_BossTribute_ValThreeBoss_Easy.PrimalItem_BossTribute_ValThreeBoss_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Nunatak - Alpha",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "f672df3f-b127-54e6-a50d-172b9cc03805",
+          "path": "/Game/ASA/Dinos/IceWyvern/Boss/PrimalItem_BossTribute_RagWyvBoss_Hard.PrimalItem_BossTribute_RagWyvBoss_Hard"
+        }
+      },
+      "items": [
+        [
+          "argentavis-talon-a797a90d5705",
+          25
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          25
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          25
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          25
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          25
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          25
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          25
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          25
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          25
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Nunatak - Beta",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "554875bf-6d38-582e-b736-afcf1f07b417",
+          "path": "/Game/ASA/Dinos/IceWyvern/Boss/PrimalItem_BossTribute_RagWyvBoss_Medium.PrimalItem_BossTribute_RagWyvBoss_Medium"
+        }
+      },
+      "items": [
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          5
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Ragnarok - Nunatak - Gamma",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "ca1aee8e-8652-5efa-94b4-8ccd663a719b",
+          "path": "/Game/ASA/Dinos/IceWyvern/Boss/PrimalItem_BossTribute_RagWyvBoss_Easy.PrimalItem_BossTribute_RagWyvBoss_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ],
+        [
+          "artifact-of-the-devious-bfffaf36d8c2",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Natrix The Devious - Alpha",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "4a24b2b7-da7b-56ba-9c5d-11c780d6c053",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Medusa_Hard.PrimalItem_BossTribute_Medusa_Hard"
+        }
+      },
+      "items": [
+        [
+          "argentavis-talon-a797a90d5705",
+          10
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          10
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Natrix The Devious - Beta",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "c209b94b-cd75-5ef9-a785-1996608c1967",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Medusa_Medium.PrimalItem_BossTribute_Medusa_Medium"
+        }
+      },
+      "items": [
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Natrix The Devious - Gamma",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "20ab7d48-24e2-55b9-8057-c973e05de388",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Medusa_Easy.PrimalItem_BossTribute_Medusa_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-massive-46422818f2b0",
+          1
+        ],
+        [
+          "artifact-of-the-hunter-54b651241e9a",
+          1
+        ],
+        [
+          "artifact-of-the-clever-c3176d50225f",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Minotarchos - Standard",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "d448ba37-5605-5591-8dc5-42e259aa4e53",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Minotaur.PrimalItem_BossTribute_Minotaur"
+        }
+      },
+      "items": [
+        [
+          "megalodon-tooth-40cf44e9c372",
+          25
+        ],
+        [
+          "corrupt-heart-6fd393e7c926",
+          2
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          5
+        ],
+        [
+          "corrupted-nodule-63bf0e99c608",
+          25
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Grendel - Gamma",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "6183ef51-7ce6-56fb-a2ae-6bd56550d6de",
+          "path": "/Game/ASA/Dinos/Megaraptor/Boss/PrimalItem_BossTribute_ValMegaraptor_Easy.PrimalItem_BossTribute_ValMegaraptor_Easy"
+        }
+      },
+      "items": [
+        [
+          "argentavis-talon-a797a90d5705",
+          5
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          5
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          5
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Grendel - Beta",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "6d13d0a4-2872-51b5-af76-bce5cc45dfd9",
+          "path": "/Game/ASA/Dinos/Megaraptor/Boss/PrimalItem_BossTribute_ValMegaraptor_Medium.PrimalItem_BossTribute_ValMegaraptor_Medium"
+        }
+      },
+      "items": [
+        [
+          "argentavis-talon-a797a90d5705",
+          8
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          8
+        ],
+        [
+          "sauropod-vertebra-d4cf2310211f",
+          8
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          10
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          5
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Valguero - Grendel - Alpha",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "db1607c5-b370-5526-96c8-a69603b54304",
+          "path": "/Game/ASA/Dinos/Megaraptor/Boss/PrimalItem_BossTribute_ValMegaraptor_Hard.PrimalItem_BossTribute_ValMegaraptor_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "argentavis-talon-a797a90d5705",
+          15
+        ],
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          2
+        ],
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "sarcosuchus-skin-8d676d5b0adc",
+          10
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ],
+        [
+          "titanoboa-venom-683125a47f61",
+          10
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          15
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Hydraskos - Gamma",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "391503b5-cc7f-5913-8928-b2ec6b823d62",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Hydra_Easy.PrimalItem_BossTribute_Hydra_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Hydraskos - Beta",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "19558511-3110-5109-b58c-b87c4c86e8a8",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Hydra_Medium.PrimalItem_BossTribute_Hydra_Medium"
+        }
+      },
+      "items": [
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          1
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          5
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          5
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          5
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          5
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          5
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Hydraskos - Alpha",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "347a8cff-7e94-57f1-9344-67ec3609994d",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Hydra_Hard.PrimalItem_BossTribute_Hydra_Hard"
+        }
+      },
+      "items": [
+        [
+          "giganotosaurus-heart-cb988a63dbff",
+          2
+        ],
+        [
+          "tusoteuthis-tentacle-ab5a4d4fdc1b",
+          10
+        ],
+        [
+          "artifact-of-the-skylord-8fe5a02494f9",
+          1
+        ],
+        [
+          "artifact-of-the-cunning-3e239d377818",
+          1
+        ],
+        [
+          "tyrannosaurus-arm-78016327001b",
+          15
+        ],
+        [
+          "yutyrannus-lungs-f136bd73dcd0",
+          10
+        ],
+        [
+          "basilosaurus-blubber-cd5af8abb301",
+          10
+        ],
+        [
+          "artifact-of-the-immune-836bc248779f",
+          1
+        ],
+        [
+          "allosaurus-brain-e93a301d4b59",
+          10
+        ],
+        [
+          "artifact-of-the-strong-94d7edc7d14b",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Thodes the Widowmaker - Gamma",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "611e44c4-c6e4-5c2e-b283-ef3fc0804c87",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Cyclops_Easy.PrimalItem_BossTribute_Cyclops_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Thodes the Widowmaker - Beta",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "83c8458b-b069-5a33-9922-be7df72c9ce0",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Cyclops_Medium.PrimalItem_BossTribute_Cyclops_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          5
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          5
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          5
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          5
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          5
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Thodes the Widowmaker - Alpha",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "5463abc5-7b58-5dda-8d59-64cc61091f26",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Cyclops_Hard.PrimalItem_BossTribute_Cyclops_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-brute-35b52c054dac",
+          1
+        ],
+        [
+          "megalodon-tooth-40cf44e9c372",
+          10
+        ],
+        [
+          "artifact-of-the-devourer-7cba426c7a87",
+          1
+        ],
+        [
+          "artifact-of-the-pack-ca31abde1829",
+          1
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ],
+        [
+          "megalania-toxin-93ec8e0558aa",
+          10
+        ],
+        [
+          "spinosaurus-sail-16504c5dc463",
+          10
+        ],
+        [
+          "thylacoleo-hook-claw-47ba1e41d59a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Manticore - Gamma",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "f1f0dca5-303f-58ce-9cf0-7d2b4fafcd11",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Manticore_Easy.PrimalItem_BossTribute_Manticore_Easy"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          2
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          2
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          2
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Manticore - Beta",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "8cdec4b6-48b7-56e0-a9a5-cd15149af59c",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Manticore_Medium.PrimalItem_BossTribute_Manticore_Medium"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          10
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          10
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Manticore - Alpha",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "41918bce-f47c-5153-ab55-daff4e124087",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Manticore_Hard.PrimalItem_BossTribute_Manticore_Hard"
+        }
+      },
+      "items": [
+        [
+          "artifact-of-the-crag-553cbfd96e41",
+          1
+        ],
+        [
+          "artifact-of-the-destroyer-6870ae3e531d",
+          1
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          20
+        ],
+        [
+          "lightning-talon-8fb1aa8d5d93",
+          20
+        ],
+        [
+          "artifact-of-the-gatekeeper-846c5e1c4fba",
+          1
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          20
+        ]
+      ]
+    },
+    {
+      "name": "Boss: Astraeos - Kalydonios & Erymanthian - Standard",
+      "games": [
+        "ASA"
+      ],
+      "sourceRecipes": {
+        "ASA": {
+          "id": "9a76cc2d-6b60-5559-a8cf-464c82c90c53",
+          "path": "/Game/Mods/Astraeos/Assets/CoreBlueprints/BossTribute/PrimalItem_BossTribute_Boars.PrimalItem_BossTribute_Boars"
+        }
+      },
+      "items": [
+        [
+          "corrupt-heart-6fd393e7c926",
+          2
+        ],
+        [
+          "poison-talon-ba9fca10ff48",
+          5
+        ],
+        [
+          "therizino-claws-03963ea4e4c6",
+          10
+        ],
+        [
+          "corrupted-nodule-63bf0e99c608",
+          25
+        ],
+        [
+          "fire-talon-1349f46f987a",
+          5
+        ]
+      ]
+    }
+  ]
+}

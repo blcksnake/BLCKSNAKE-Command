@@ -3,6 +3,9 @@
 /scripts
 /test
 /test-support
+/test-browser
+/test-ux
+/deploy
 /docs
 /data
 /logs

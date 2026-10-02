@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.4.0 - 2026-10-02
+
+### Added
+
+- Add a floating Add Map wizard with separate ASA and ASE presets, unused-port suggestions, RCON/SFTP validation, and a review step before applying settings.
+- Add exact, case-sensitive identifiers for 24 ASA and ASE maps, including `TheIsland_WP` for ASA and `TheIsland` for ASE, while preserving existing server IDs and custom maps.
+- Add bulk map enablement, disablement, and removal, plus bulk broadcast-template categorization and deletion through the existing settings review flow.
+- Add cross-section search with Ctrl/Command+K, keyboard navigation, and mobile shortcuts for search, players, operations, and maps.
+- Add mixed carts for multiple catalog items and packages, with quantities, quality, blueprint options, and review of up to 50 expanded grant lines.
+- Add per-operator favorite items and recently granted items, persisted in encrypted state.
+- Add 20 ASA boss tribute packages, including Nunatak, Grendel, and Astraeos encounters, with searchable map and difficulty filters.
+
+### Changed
+
+- Use compact, searchable map cards and collapsible settings sections with retained drafts, focus, and disclosure state. Keep dialog headers and review controls visible on mobile and desktop.
+- Add broadcast-template categories, filters, duplication, and presets; group boss packages by map, boss, or difficulty while retaining shared grants and immediate package saves.
+- Show map health and live player summaries, including offline, degraded, stale, and unknown observations.
+- Select ASA/ASE item blueprints and package suggestions from recognized configured map identifiers. Unknown maps remain unverified; ASE grants require an administrator-verified character-ID mapping.
+- Verify 2,215 catalog entries and 65 boss recipes against the bundled source registry. Correct 27 inherited recipe defaults only when their complete records are untouched; preserve custom, edited, disabled, and deleted packages and label unverified recipes clearly.
+- Revalidate player identity, map context, package revisions, and exact blueprint paths before grants. Show per-item outcomes and stop remaining commands after failure or uncertainty without automatic retries.
+- Retain the native JavaScript/HTML/CSS stack, existing permissions, and encrypted settings/state persistence without database migrations.
+
+### Fixed
+
+- Stop item-search layout jumps with debounced requests, fixed-height results, virtual rows, DOM reuse, and stale-response protection.
+- Preserve player dropdown selections and option nodes during polling, and refresh expired player selections before review without narrowing the roster.
+- Restore the cart, search, focus, and scroll position when returning from confirmation; keep drafts on validation and request errors.
+- Improve invalid-field handling, keyboard navigation, reduced-motion behavior, and narrow-screen layouts without horizontal overflow.
+- Report the current package version in optional analytics instead of a stale hard-coded release number.
+
 ## 1.3.0 - 2026-09-19
 
 - Add a dedicated Analytics dashboard with live map availability, current player distribution, Discord relay state, service uptime, scheduled-restart status, and per-map activity.

@@ -9,6 +9,10 @@ config.json
 /scripts/
 /test/
 /test-support/
+/test-browser/
+/test-ux/
+/deploy/
+/reports/
 node_modules/
 coverage/
 /logs/

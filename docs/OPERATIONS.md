@@ -57,10 +57,11 @@ If the dashboard asks for a new owner, stop the container. The expected data or 
 
 ## Update
 
-Create a backup, then run:
+Create a backup of the data and keystore volumes together. Set the image in your existing `docker-compose.yml` to `blcksnake/blcksnake-command:1.4.0`, retaining the current volume names and network bindings. `docker compose pull` follows that tag; it does not replace an older version pinned in the file.
+
+Then run:
 
 ```bash
-docker compose down
 docker compose pull
 docker compose up -d
 docker compose ps

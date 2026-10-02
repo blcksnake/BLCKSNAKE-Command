@@ -6,7 +6,10 @@ import {
 } from './announcement-policy.js';
 import { parseGameCommand, parseDurationMinutes } from './command-parser.js';
 import { toDiscordEmoji, toGameEmoji } from './emoji.js';
-import { getItem, resolveItemInput, searchItems } from './item-catalog.js';
+import { getItem, getItemForGame, resolveItemInput, searchItems } from './item-catalog.js';
+import { inferServerGameContext } from './ark-compatibility.js';
+import { packageCompatibleWithGame } from './item-packages.js';
+import { expandGrantCart } from './grant-cart.js';
 import { Metrics } from './metrics.js';
 import { PermissionLevel, getPermissionLevel } from './permissions.js';
 import { findPlayer } from './player-parser.js';
@@ -277,7 +280,14 @@ export class ClusterBridge {
 
   profileKey(server, player) { return `${server.id}:${String(player.id ?? '').toLocaleLowerCase('en-US')}`; }
 
-  profileSource(server) { return this.profileSources.get(server.id) ?? null; }
+  profileSource(server) {
+    // The read-only profile adapter validates ASA EOS identities and binary
+    // profile versions. ASE Steam profiles require a different parser; keep
+    // using explicitly saved PlayerDataID mappings rather than trying ASA
+    // parsing or an unreliable identity-conversion command against ASE.
+    if (inferServerGameContext(server).game === 'ASE') return null;
+    return this.profileSources.get(server.id) ?? null;
+  }
 
   profileMapping(server, player) {
     const stored = this.state.getPlayerDataMapping?.(server.id, player.id);
@@ -460,8 +470,11 @@ export class ClusterBridge {
   }
 
   async sendPackageItem(server, playerDataId, entry) {
-    const item = getItem(entry.itemKey);
-    if (!item) throw new Error('The package contains an unavailable catalog item.');
+    const item = getItemForGame(entry.itemKey, inferServerGameContext(server));
+    if (!item) throw determinateOperationError('The package contains a catalog item unavailable for this game edition.');
+    if (Object.hasOwn(entry, 'blueprintPath') && (entry.blueprintPath !== item.blueprintPath || entry.itemNumber !== item.itemNumber)) {
+      throw determinateOperationError('The selected game blueprint changed. Review the cart again.');
+    }
     if (item.blueprintPath) {
       await server.giveItemToPlayer(playerDataId, item.blueprintPath, entry.quantity, entry.quality, entry.blueprint);
     } else if (item.itemNumber != null) {
@@ -1031,7 +1044,7 @@ export class ClusterBridge {
   }
 
   playerChoices(query, command, discordUserId) {
-    const grants = command === 'give-item' || command === 'give-package' || command === 'give-xp' || command === 'give-item-preset';
+    const grants = command === 'give-item' || command === 'give-package' || command === 'give-cart' || command === 'give-xp' || command === 'give-item-preset';
     const choices = [];
     for (const server of this.servers) for (const player of server.players ?? []) {
       const mapping = this.profileMapping(server, player); const mapped = mapping?.playerDataId;
@@ -1082,7 +1095,7 @@ export class ClusterBridge {
     const userId = String(principalId ?? '').trim();
     if (!userId) throw new Error('An authenticated principal is required for player selections.');
     const maximum = Math.min(100, Math.max(1, Number.isSafeInteger(limit) ? limit : 100));
-    const grants = ['give-item', 'give-package', 'give-xp', 'give-item-preset'].includes(String(purpose));
+    const grants = ['give-item', 'give-package', 'give-cart', 'give-xp', 'give-item-preset'].includes(String(purpose));
     const choices = [];
     for (const server of this.servers) for (const player of server.players ?? []) {
       const mapping = this.profileMapping(server, player); const source = this.profileSource(server);
@@ -1294,7 +1307,7 @@ export class ClusterBridge {
     return minutes;
   }
 
-  async executeStaffCommand({ command, options = {}, level = PermissionLevel.NONE, principalId, actor } = {}) {
+  async executeStaffCommand({ command, options = {}, level = PermissionLevel.NONE, principalId, preferencePrincipalId, actor } = {}) {
     const name = String(command ?? '').trim();
     const userId = String(principalId ?? '').trim();
     if (!name || !userId) throw new Error('A staff command and authenticated principal are required.');
@@ -1303,6 +1316,7 @@ export class ClusterBridge {
       options,
       level,
       principalId: userId,
+      preferencePrincipalId: preferencePrincipalId ?? userId,
       actor: sanitizeIdentity(actor || 'staff', 64),
       root: 'asa-admin',
     });
@@ -1392,11 +1406,15 @@ export class ClusterBridge {
     }
     if (command === 'give-item') {
       requireLevel(PermissionLevel.ADMIN);
-      return this.executeItemGrant(options, actor, user.id);
+      return this.executeItemGrant(options, actor, user.id, staffContext?.preferencePrincipalId ?? user.id);
     }
     if (command === 'give-package') {
       requireLevel(PermissionLevel.ADMIN);
       return this.executePackageGrant(options, actor, user.id);
+    }
+    if (command === 'give-cart') {
+      requireLevel(PermissionLevel.ADMIN);
+      return this.executeGrantCart(options, actor, user.id, staffContext?.preferencePrincipalId ?? user.id);
     }
     if (command === 'give-item-num') {
       requireLevel(PermissionLevel.ADMIN);
@@ -1622,24 +1640,29 @@ export class ClusterBridge {
     return matches[0];
   }
 
-  async executeItemGrant(options, actor, discordUserId) {
+  async executeItemGrant(options, actor, discordUserId, preferencePrincipalId = discordUserId) {
     const quantity = options.quantity ?? 1; const quality = options.quality ?? 0;
     const forceBlueprint = options.blueprint ?? false;
-    const item = options.item ? resolveItemInput(options.item) : null;
+    let item = options.item ? resolveItemInput(options.item) : null;
     if (options.item && !item) {
       throw new Error('Choose an item from the built-in autocomplete list, or enter one unique exact name, GFI code, or item number.');
     }
-    const blueprintPath = item?.blueprintPath ?? options['blueprint-path'];
-    const itemNumber = item?.itemNumber ?? options['item-number'];
     let target = await this.resolveGrantTarget(options, discordUserId);
     target = await this.confirmGrantTargetOnline(target);
+    this.assertGrantContext(options, target.server);
+    if (item) {
+      item = getItemForGame(item.key, inferServerGameContext(target.server));
+      if (!item) throw determinateOperationError('The selected item is unavailable for this game edition. No item command was sent.');
+    }
+    const blueprintPath = item?.blueprintPath ?? options['blueprint-path'];
+    const itemNumber = item?.itemNumber ?? options['item-number'];
     if (blueprintPath) await target.server.giveItemToPlayer(target.playerDataId, blueprintPath, quantity, quality, forceBlueprint);
     else if (itemNumber != null) await target.server.giveItemNumToPlayer(target.playerDataId, itemNumber, quantity, quality, forceBlueprint);
     else throw new Error('The selected catalog item has no usable blueprint path or item number.');
     const itemLabel = item?.name ?? (itemNumber != null ? `item #${itemNumber}` : 'the requested item');
     await this.audit(`GIVEITEM target=${target.player?.name ?? 'manual'} item=${item?.key ?? itemNumber ?? 'legacy-path'} on ${target.server.id} by ${actor} quantity=${quantity} quality=${quality} blueprint=${forceBlueprint}`);
-    if (item && discordUserId && typeof this.state.recordRecentItem === 'function') {
-      try { await this.state.recordRecentItem(discordUserId, item.key); }
+    if (item && preferencePrincipalId && typeof this.state.recordRecentItem === 'function') {
+      try { await this.state.recordRecentItem(preferencePrincipalId, item.key); }
       catch (error) {
         // The RCON mutation already succeeded. Preference persistence is
         // deliberately best-effort so it cannot turn success into a retryable
@@ -1657,10 +1680,20 @@ export class ClusterBridge {
       throw new Error('That item package is disabled, missing, or changed. Refresh and review it again.');
     }
     let target = await this.resolveGrantTarget(options, principalId);
+    const context = inferServerGameContext(target.server);
+    if (!packageCompatibleWithGame(itemPackage, context) || itemPackage.items.some((entry) => !getItemForGame(entry.itemKey, context))) {
+      throw determinateOperationError('The selected package is unavailable for this game edition. No item command was sent.');
+    }
     target = await this.confirmGrantTargetOnline(target);
+    this.assertGrantContext(options, target.server);
+    const current = this.state.getItemPackage?.(options.package);
+    if (!current?.enabled || current.revision !== options.packageRevision) {
+      throw determinateOperationError('The package changed during player verification. Review it again. No item command was sent.');
+    }
     let completed = 0;
     for (const entry of itemPackage.items) {
       try {
+        this.assertGrantContext(options, target.server);
         await this.sendPackageItem(target.server, target.playerDataId, entry);
         completed += 1;
       } catch (error) {
@@ -1670,6 +1703,75 @@ export class ClusterBridge {
     }
     await this.audit(`GIVEPACKAGE target=${target.player?.name ?? 'manual'} package=${itemPackage.id} revision=${itemPackage.revision} on ${target.server.id} by ${actor} items=${itemPackage.items.length}`);
     return `Gave ${itemPackage.name} (${itemPackage.items.length} item types) to ${target.player?.name ?? 'the selected player'} on ${target.server.name}.`;
+  }
+
+  assertGrantContext(options, server) {
+    if (!options.grantContext) return;
+    const context = inferServerGameContext(server);
+    if (options.grantContext.game !== context.game || options.grantContext.mapId !== context.mapId || options.grantContext.serverId !== server.id) {
+      throw determinateOperationError('The selected map context changed. Review the grant again.', 'GRANT_CONTEXT_CHANGED');
+    }
+  }
+
+  async executeGrantCart(options, actor, principalId, preferencePrincipalId = principalId) {
+    let lines = expandGrantCart(options, this.state, options.grantContext);
+    const grantResults = lines.map((entry) => ({ ...entry, outcome: 'not-sent' }));
+    let target;
+    try {
+      if (JSON.stringify(lines) !== JSON.stringify(options.grantLines)) {
+        throw determinateOperationError('The cart contents changed. Review this cart again.', 'CART_CHANGED');
+      }
+      target = await this.resolveGrantTarget(options, principalId);
+      target = await this.confirmGrantTargetOnline(target);
+      const context = inferServerGameContext(target.server);
+      if (options.grantContext?.game !== context.game || options.grantContext?.mapId !== context.mapId || options.grantContext?.serverId !== target.server.id) {
+        throw determinateOperationError('The selected map context changed. Review the cart again.', 'CART_CONTEXT_CHANGED');
+      }
+      if (lines.some((entry) => !getItemForGame(entry.itemKey, context))
+        || options.packages.some((entry) => !packageCompatibleWithGame(this.state.getItemPackage(entry.packageId), context))) {
+        throw determinateOperationError('The cart contains items or packages unavailable for this game edition. No item command was sent.');
+      }
+      // Profile/player refresh may yield while another administrator edits a
+      // package. Validate the entire immutable cart again before its first send.
+      lines = expandGrantCart(options, this.state, context);
+      if (JSON.stringify(lines) !== JSON.stringify(options.grantLines)) {
+        throw determinateOperationError('The cart contents changed. Review this cart again.', 'CART_CHANGED');
+      }
+    } catch (error) {
+      error.operationOutcome = 'failed'; error.grantResults = grantResults; throw error;
+    }
+    for (let index = 0; index < lines.length; index += 1) {
+      const entry = lines[index];
+      try {
+        const context = inferServerGameContext(target.server);
+        if (options.grantContext?.game !== context.game || options.grantContext?.mapId !== context.mapId) {
+          throw determinateOperationError('The selected map context changed before the next grant.');
+        }
+        await this.sendPackageItem(target.server, target.playerDataId, entry);
+        grantResults[index].outcome = 'sent';
+      } catch (cause) {
+        const determinate = cause?.operationOutcome === 'failed';
+        grantResults[index].outcome = determinate ? 'not-sent' : 'uncertain';
+        const lineStatus = determinate ? 'was not sent because its game compatibility changed' : 'has an uncertain outcome';
+        const error = new Error(`Cart stopped after ${index} of ${lines.length} item lines were sent. Line ${index + 1} ${lineStatus}; later lines were not sent. Do not resend this cart. Check the player's inventory before granting any missing items.`);
+        error.cause = cause; error.operationOutcome = determinate && index === 0 ? 'failed' : 'uncertain'; error.grantResults = grantResults; throw error;
+      }
+      if (typeof this.state.recordRecentItem === 'function') {
+        try { await this.state.recordRecentItem(preferencePrincipalId, entry.itemKey); }
+        catch (error) {
+          this.logger?.warn?.('Recent item preference persistence failed after successful cart grant', { error: error.message });
+          this.metrics.increment('errors_total', { context: 'item_recent_persist' });
+        }
+      }
+    }
+    try {
+      await this.audit(`GIVECART target=${target.player?.name ?? 'manual'} on ${target.server.id} by ${actor} items=${lines.length} packages=${options.packages.length}`);
+    } catch (error) {
+      error.grantResults = grantResults; error.operationOutcome = 'uncertain';
+      error.message = 'All cart item lines were sent, but the final audit could not be recorded. Do not resend this cart.';
+      throw error;
+    }
+    return { message: `Sent ${lines.length} item lines to ${target.player?.name ?? 'the selected player'} on ${target.server.name}.`, grantResults };
   }
 
   async resolveGrantTarget(options, discordUserId) {
@@ -1703,7 +1805,7 @@ export class ClusterBridge {
         : '';
       const automatic = source ? ` Automatic read-only profile lookup did not return it${lookupFailureCode ? ` (${lookupFailureCode})` : ''}; check that map's SFTP access.${hostKeyHelp}` : '';
       throw determinateOperationError(
-        `${match.player.name} is connected and their EOS ID was detected automatically, but ASA item/XP commands require a different numeric PlayerDataID.${automatic} No item or XP command was sent.`,
+        `${match.player.name} is connected and their ${/^[a-f0-9]{32}$/iu.test(String(match.player.id)) ? 'EOS ID was detected automatically' : 'account ID was detected'}, but ARK item/XP commands require a different numeric PlayerDataID.${automatic}${inferServerGameContext(match.server).game === 'ASE' ? ' Save a verified PlayerDataID with the administrator remember-player-id command before granting to this ASE player.' : ''} No item or XP command was sent.`,
         'PLAYER_ID_LOOKUP_FAILED',
       );
     }

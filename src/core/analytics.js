@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
+import packageMetadata from '../../package.json' with { type: 'json' };
 
 const APP_NAME = 'BLCKSNAKE Command';
-const APP_VERSION = '1.1.1';
+const APP_VERSION = packageMetadata.version;
 const SCHEMA_VERSION = 1;
 const HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1_000;
 const REQUEST_TIMEOUT_MS = 5_000;

@@ -14,7 +14,10 @@ import {
   MAX_ITEM_PACKAGES, cleanItemPackageId, cloneItemPackage, normalizeItemPackageInput,
   normalizePersistedItemPackages,
 } from '../../core/item-packages.js';
-import { createBundledItemPackages } from '../../core/default-item-packages.js';
+import {
+  createBundledItemPackages, mergeBundledPackageAdditions, correctUntouchedBundledPackages,
+  BUNDLED_PACKAGE_ADDITIONS_VERSION,
+} from '../../core/default-item-packages.js';
 import {
   cleanDiscordUserId,
   cleanItemKey,
@@ -706,11 +709,17 @@ export class JsonStateStore {
   }
 
   seedBundledPackagesIfNeeded() {
-    if (!this.seedBundledItemPackages || this.state.bundledItemPackagesSeeded) return false;
-    const itemPackages = Object.keys(this.state.itemPackages).length === 0
-      ? createBundledItemPackages()
-      : this.state.itemPackages;
-    this.state = { ...this.state, itemPackages, bundledItemPackagesSeeded: true };
+    if (!this.seedBundledItemPackages) return false;
+    const seeded = this.state.bundledItemPackagesSeeded;
+    const additionsApplied = this.state.bundledItemPackageAdditionsVersion === BUNDLED_PACKAGE_ADDITIONS_VERSION;
+    if (seeded && additionsApplied) return false;
+    const previous = !seeded && Object.keys(this.state.itemPackages).length === 0
+      ? createBundledItemPackages() : this.state.itemPackages;
+    const itemPackages = additionsApplied ? previous : correctUntouchedBundledPackages(
+      mergeBundledPackageAdditions(previous).itemPackages, { now: this.now() },
+    ).itemPackages;
+    this.state = { ...this.state, itemPackages, bundledItemPackagesSeeded: true,
+      bundledItemPackageAdditionsVersion: BUNDLED_PACKAGE_ADDITIONS_VERSION };
     return true;
   }
 

@@ -13,6 +13,17 @@
     'Event starting': 'A server event is starting soon. Watch chat for details and follow staff instructions.',
     'Rules reminder': 'Reminder: respect other players, avoid blocking access, and report disputes to staff.'
   };
+  var TEMPLATE_CATEGORIES = { general: 'General', maintenance: 'Maintenance', events: 'Events', community: 'Community', rules: 'Rules' };
+  var settingsSection = 'settings-maps';
+  var settingsMapWizard = null;
+  var expandedOverviewMaps = new Set();
+  var packageGroupStates = new Map();
+  var lastMapSnapshot = '';
+  var lastPackageSnapshot = '';
+  var lastInsightSnapshot = '';
+  var searchGeneration = 0;
+  var searchRole = '';
+  var grantCart = null;
 
   var pageMeta = {
     overview: ['Overview', 'Maps, players, and active issues'],
@@ -329,6 +340,7 @@
       var failure = new ApiError(safeString(message, 420), response.status, errorCode);
       failure.outcome = safeString(payload.outcome, 40);
       failure.operationId = safeString(payload.operationId, 100);
+      failure.grantResults = Array.isArray(payload.grantResults) ? payload.grantResults : null;
       failure.settingsCommitted = response.headers.get('x-settings-committed') === 'true'
         || errorCode === 'settings_committed_audit_failed';
       failure.tlsTrustUpdateRequired = response.headers.get('x-tls-trust-update-required') === 'true';
@@ -397,8 +409,8 @@
     var source = state.capabilities.templates;
     if (Array.isArray(source)) {
       return source.map(function (value) {
-        if (typeof value === 'string') return { value: value, label: value };
-        return { value: safeString(value && (value.name || value.value), 100), label: safeString(value && (value.label || value.name || value.value), 100) };
+        if (typeof value === 'string') return { value: value, label: value, category: 'general' };
+        return { value: safeString(value && (value.name || value.value), 100), label: safeString(value && (value.label || value.name || value.value), 100), category: value && Object.hasOwn(TEMPLATE_CATEGORIES, value.category) ? value.category : 'general' };
       }).filter(function (item) { return item.value; });
     }
     if (source && typeof source === 'object') {
@@ -445,7 +457,13 @@
   }
 
   function clearSensitiveClientState(options) {
+    grantCart = null;
     var settings = options || {};
+    lastMapSnapshot = ''; lastPackageSnapshot = ''; lastInsightSnapshot = ''; packageGroupStates.clear(); searchGeneration += 1;
+    if ($('#command-search-results')) $('#command-search-results').replaceChildren();
+    if ($('#command-search-input')) $('#command-search-input').value = '';
+    if ($('#command-search-status')) $('#command-search-status').textContent = '';
+    if ($('#mobile-quick-actions')) $('#mobile-quick-actions').hidden = true;
     clearStaffRecord();
     clearSettingsState({ preserveAutomationTokenRecovery: Boolean(settings.preserveAutomationTokenRecovery) });
     state.session = null;
@@ -846,7 +864,10 @@
 
   function renderRoleAccess() {
     var admin = isAdministrator();
+    if ($('#mobile-quick-actions')) $('#mobile-quick-actions').hidden = !state.session || state.passwordChangeRequired;
+    if ($('#command-search-dialog') && $('#command-search-dialog').open && state.passwordChangeRequired) $('#command-search-dialog').close();
     if (!admin && state.settingsProjection) clearSettingsState();
+    if ($('#command-search-dialog') && $('#command-search-dialog').open && searchRole !== currentRole()) renderCommandSearch();
     $all('[data-admin-only]:not([data-panel])').forEach(function (node) { setHidden(node, !admin); });
     $all('[data-panel][data-admin-only]').forEach(function (panel) {
       setHidden(panel, !admin || panel.dataset.panel !== state.currentTab);
@@ -937,6 +958,19 @@
     $('.status-dot', live).className = 'status-dot ' + tone;
     $('span:last-child', live).textContent = text;
     live.title = state.lastRefreshAt ? 'Last refreshed ' + new Date(state.lastRefreshAt).toLocaleTimeString() : 'No status received';
+    if (state.session) {
+      var visibleServers = selectedServers();
+      $all('[data-overview-map]').forEach(function (card) {
+        var server = visibleServers.find(function (entry) { return String(entry.serverId) === card.dataset.overviewMap; });
+        if (!server) return;
+        var health = mapHealth(server); var badge = $('.map-health-badge', card); var detail = $('.map-health-detail', card);
+        if (badge && (badge.textContent !== health.label || badge.title !== health.reason)) {
+          badge.textContent = health.label; badge.className = 'state-badge map-health-badge ' + health.tone; badge.title = health.reason;
+        }
+        if (detail && detail.textContent !== health.reason) detail.textContent = health.reason;
+      });
+      renderPlayerInsights(visibleServers);
+    }
   }
 
   function selectedServers() {
@@ -1125,16 +1159,29 @@
 
   function renderMaps(servers) {
     var grid = $('#map-grid');
+    var snapshot = JSON.stringify(servers) + ':' + ['announce', 'save-world', 'restart'].map(actionAvailable).join(':');
+    if (lastMapSnapshot === snapshot && grid.firstElementChild) return;
+    lastMapSnapshot = snapshot;
+    var active = document.activeElement;
+    var activeCard = active && active.closest('[data-overview-map]');
+    var focusKey = activeCard && activeCard.dataset.overviewMap;
+    var focusAction = active && active.dataset.openAction;
+    var focusSummary = active && active.tagName === 'SUMMARY';
     if (!servers.length) {
       grid.replaceChildren(element('div', 'surface empty-copy', 'No map servers are configured in this scope.'));
+      renderPlayerInsights(servers);
       return;
     }
     var nodes = servers.map(function (server) {
       var card = element('article', 'map-card surface ' + (server.connected ? '' : 'offline'));
+      card.dataset.overviewMap = String(server.serverId);
       var head = element('div', 'map-card-head');
       var title = element('div', 'map-title');
       title.append(element('h3', '', server.serverName || server.serverId || 'Map'), element('span', '', server.serverId || 'configured map'));
-      head.append(title, element('span', 'state-badge ' + (server.connected ? 'good' : 'bad'), server.connected ? 'Online' : 'Offline'));
+      var health = mapHealth(server);
+      var badge = element('span', 'state-badge map-health-badge ' + health.tone, health.label);
+      badge.title = health.reason;
+      head.append(title, badge);
 
       var stat = element('div', 'map-player-stat');
       var playerCount = element('div', 'map-player-count');
@@ -1173,6 +1220,10 @@
       }
 
       var actions = element('div', 'map-actions');
+      var viewPlayers = element('button', '', 'View players'); viewPlayers.type = 'button';
+      viewPlayers.dataset.mapPlayers = String(server.serverId);
+      viewPlayers.addEventListener('click', function () { openMapPlayers(String(server.serverId)); });
+      actions.append(viewPlayers);
       [['announce', 'Announce'], ['save-world', 'Save'], ['restart', 'Restart']].forEach(function (entry) {
         var button = element('button', '', entry[1]);
         button.type = 'button';
@@ -1181,10 +1232,60 @@
         button.disabled = !actionAvailable(entry[0]);
         actions.append(button);
       });
-      card.append(head, stat, rows, playerList, actions);
+      var details = element('details', 'map-diagnostics');
+      details.open = expandedOverviewMaps.has(String(server.serverId));
+      details.append(element('summary', '', 'Connection details and players'), rows, playerList);
+      details.addEventListener('toggle', function () {
+        if (details.open) expandedOverviewMaps.add(String(server.serverId)); else expandedOverviewMaps.delete(String(server.serverId));
+      });
+      card.append(head, stat, element('p', 'map-health-detail', health.reason), details, actions);
       return card;
     });
     grid.replaceChildren.apply(grid, nodes);
+    if (focusKey) {
+      var restoredCard = nodes.find(function (card) { return card.dataset.overviewMap === focusKey; });
+      var restored = restoredCard && (focusSummary ? $('summary', restoredCard) : active.dataset.mapPlayers ? $('[data-map-players]', restoredCard) : $all('[data-open-action]', restoredCard).find(function (button) { return button.dataset.openAction === focusAction; }));
+      if (restored) restored.focus({ preventScroll: true });
+    }
+    renderPlayerInsights(servers);
+  }
+
+  function mapHealth(server) {
+    if (!state.lastRefreshAt || Date.now() - state.lastRefreshAt > STALE_AFTER_MS) return { label: 'Unknown', tone: 'warn', reason: 'Dashboard status is stale. Connection and player counts are last observed.' };
+    if (server.connected !== true && server.connected !== false) return { label: 'Unknown', tone: '', reason: 'Connection status has not been reported.' };
+    if (server.connected === false) return { label: 'Offline', tone: 'bad', reason: 'RCON is not responding. Player counts are last observed.' };
+    var refreshed = timestamp(server.lastPlayerRefreshAt);
+    var profile = server.profileImport || {};
+    if (refreshed === null) return { label: 'Unknown', tone: '', reason: 'Connected; player observation time is unavailable.' };
+    if (Date.now() - refreshed > 120_000) return { label: 'Needs attention', tone: 'warn', reason: 'Player list is stale — updated ' + formatAge(refreshed) + '.' };
+    if (numeric(server.consecutiveFailures) > 0) return { label: 'Needs attention', tone: 'warn', reason: 'Recent RCON failures; players updated ' + formatAge(refreshed) + '.' };
+    if (profile.enabled && (['degraded', 'error', 'unavailable', 'failed'].includes(String(profile.state).toLowerCase()) || numeric(profile.verifiedPlayers) < numeric(profile.eligiblePlayers))) {
+      return { label: 'Needs attention', tone: 'warn', reason: 'Profile targeting needs attention; players updated ' + formatAge(refreshed) + '.' };
+    }
+    return { label: 'Healthy', tone: 'good', reason: 'RCON connected; players updated ' + formatAge(refreshed) + '.' };
+  }
+
+  function renderPlayerInsights(servers) {
+    var summary = $('#map-health-summary'); var insights = $('#player-insights');
+    var profiles = profileCounts(servers);
+    var insightSnapshot = JSON.stringify(servers.map(function (server) { var at = timestamp(server.lastPlayerRefreshAt); return [server.serverId, server.playerCount, mapHealth(server).label, at === null || Date.now() - at > 120_000]; })) + ':' + JSON.stringify(profiles) + ':' + (Date.now() - state.lastRefreshAt > STALE_AFTER_MS);
+    if (lastInsightSnapshot === insightSnapshot) return;
+    lastInsightSnapshot = insightSnapshot;
+    if (summary) {
+      var healthy = servers.filter(function (server) { return mapHealth(server).label === 'Healthy'; }).length;
+      summary.textContent = healthy + ' of ' + servers.length + ' maps healthy; ' + (servers.length - healthy) + ' need attention or fresh observations.';
+    }
+    if (insights) {
+      var total = servers.reduce(function (sum, server) { return sum + numeric(server.playerCount); }, 0);
+      var stale = servers.filter(function (server) { var at = timestamp(server.lastPlayerRefreshAt); return Date.now() - state.lastRefreshAt > STALE_AFTER_MS || !server.connected || at === null || Date.now() - at > 120_000; }).length;
+      insights.replaceChildren(element('strong', '', plural(total, 'player') + ' last observed'), element('span', '', stale ? plural(stale, 'map') + ' with unavailable or stale player data.' : 'Player observations are current within two minutes.'), element('span', '', profiles.enabled ? profiles.verified + ' of ' + profiles.eligible + ' eligible player profiles verified for targeting.' : 'Profile targeting is not enabled in this scope.'));
+    }
+  }
+
+  function openMapPlayers(id) {
+    if (!activateTab('players')) return;
+    $('#server-scope').value = id; $('#player-search').value = '';
+    renderStatus(); loadPlayers({ quiet: false }); $('#player-search').focus({ preventScroll: true });
   }
 
   function renderServerChoices() {
@@ -1366,15 +1467,22 @@
   function refreshPlayerSelects() {
     $all('select[data-field-type="player"]').forEach(function (select) {
       var previous = select.value || state.actionDefaults.player || '';
-      var options = [new Option(state.actionPlayers.length ? 'Choose a connected player' : 'Loading connected players...', '')];
+      var options = [{ label: state.actionPlayers.length ? 'Choose a connected player' : 'No connected players loaded', value: '' }];
       state.actionPlayers.forEach(function (player) {
         var display = player.survivorName && player.name && player.survivorName !== player.name
           ? player.survivorName + ' / ' + player.name
           : player.survivorName || player.name || 'Connected player';
         var target = targetState(player.targeting);
-        options.push(new Option(safeString(display + ' - ' + (player.serverName || player.serverId) + ' - ' + target.text, 180), player.selection));
+        options.push({ label: safeString(display + ' - ' + (player.serverName || player.serverId) + ' - ' + target.text, 180), value: player.selection });
       });
-      select.replaceChildren.apply(select, options);
+      var existing = new Map(Array.from(select.options).map(function (option) { return [option.value, option]; }));
+      options.forEach(function (entry, index) {
+        var option = existing.get(entry.value) || new Option(entry.label, entry.value);
+        if (option.textContent !== entry.label) option.textContent = entry.label;
+        if (select.options[index] !== option) select.insertBefore(option, select.options[index] || null);
+        existing.delete(entry.value);
+      });
+      existing.forEach(function (option) { option.remove(); });
       if (state.actionPlayers.some(function (player) { return player.selection === previous; })) select.value = previous;
     });
   }
@@ -1389,7 +1497,7 @@
     return Boolean(candidateSurvivor && contextSurvivor && candidateSurvivor === contextSurvivor);
   }
 
-  async function loadActionPlayers(action, context) {
+  async function loadActionPlayers(action, context, options) {
     if (state.actionPlayerController) state.actionPlayerController.abort();
     var controller = new AbortController();
     state.actionPlayerController = controller;
@@ -1397,7 +1505,7 @@
     state.actionDefaults.player = '';
     refreshPlayerSelects();
     var params = new URLSearchParams({ purpose: action });
-    if (context) {
+    if (context && !(options && options.retainRoster)) {
       var exactName = safeString(context.name || context.survivorName, 100).trim();
       if (exactName) params.set('q', exactName);
     }
@@ -1407,15 +1515,17 @@
       var candidates = Array.isArray(result.players) ? result.players.filter(function (player) {
         return player && typeof player.selection === 'string' && player.selection;
       }) : [];
+      var matches = context ? candidates.filter(function (player) { return sameVisiblePlayer(player, context); }) : [];
       if (context) {
-        candidates = candidates.filter(function (player) { return sameVisiblePlayer(player, context); });
-        if (candidates.length !== 1) {
+        if (matches.length !== 1) {
           throw new ApiError('That player changed maps, disconnected, or could not be matched exactly. Refresh the player list and choose them again.', 409, 'PLAYER_CHANGED');
         }
+        if (!(options && options.retainRoster)) candidates = matches;
       }
       state.actionPlayers = candidates;
-      state.actionDefaults.player = context && candidates.length === 1 ? candidates[0].selection : '';
+      state.actionDefaults.player = context ? matches[0].selection : '';
       refreshPlayerSelects();
+      if (grantCart && state.currentAction === 'give-cart') updateGrantContext();
     } catch (error) {
       if (error && error.name === 'AbortError') return;
       state.actionPlayers = [];
@@ -2296,6 +2406,7 @@
       ? instanceSource.automationToken : {};
     return {
       revision: boundedInteger(source.revision, 0, 0, Number.MAX_SAFE_INTEGER),
+      workflowPresets: jsonRecord(source.workflowPresets) ? source.workflowPresets : {},
       managed: source.managed !== false,
       restartRequired: source.restartRequired || false,
       instance: {
@@ -2339,6 +2450,7 @@
           allowRawRcon: Boolean(moderationSource.allowRawRcon),
           rawRconAllowlist: settingsList(moderationSource.rawRconAllowlist, 64),
           announcementTemplates: settingsAnnouncementTemplates(moderationSource.announcementTemplates),
+          announcementTemplateCategories: jsonRecord(moderationSource.announcementTemplateCategories) ? moderationSource.announcementTemplateCategories : {},
           discordInviteUrl: safeString(moderationSource.discordInviteUrl, 256),
           recurringAnnouncements: Array.isArray(moderationSource.recurringAnnouncements) ? moderationSource.recurringAnnouncements.slice(0, 12) : []
         }
@@ -2418,6 +2530,7 @@
   }
 
   function clearSettingsState(options) {
+    closeMapWizard(false);
     var settings = options || {};
     if (state.settingsController) state.settingsController.abort();
     state.settingsController = null;
@@ -2531,20 +2644,26 @@
     return { section: section, heading: heading };
   }
 
-  function suggestedAsaMapName(server) {
-    var candidates = [server && server.name, server && server.id].map(function (value) {
+  function settingsMapPresets() {
+    var presets = state.settingsProjection?.workflowPresets?.maps;
+    return Array.isArray(presets) ? presets : [];
+  }
+
+  function suggestedMapName(server) {
+    var presets = settingsMapPresets();
+    // An exact ID takes precedence over a shared display name (ASA versus ASE).
+    var id = safeString(server && server.id, 96).trim().replace(/-\d+$/u, '');
+    var preset = presets.find(function (entry) { return entry.mapName === id; });
+    if (preset) return preset.mapName;
+    var candidates = [server && server.id, server && server.name].map(function (value) {
       return safeString(value, 96).trim();
     }).filter(Boolean);
     var exact = candidates.find(function (value) { return /^[A-Za-z0-9_-]+_WP$/u.test(value); });
     if (exact) return exact;
-    var known = {
-      theisland: 'TheIsland_WP', scorchedearth: 'ScorchedEarth_WP', thecenter: 'TheCenter_WP',
-      aberration: 'Aberration_WP', extinction: 'Extinction_WP', ragnarok: 'Ragnarok_WP',
-      valguero: 'Valguero_WP'
-    };
     for (var candidate of candidates) {
-      var match = known[candidate.toLowerCase().replace(/[^a-z0-9]/gu, '')];
-      if (match) return match;
+      var normalized = candidate.toLowerCase().replace(/[^a-z0-9]/gu, '');
+      var match = presets.find(function (entry) { return entry.name.toLowerCase().replace(/[^a-z0-9]/gu, '') === normalized; });
+      if (match) return match.mapName;
     }
     return '';
   }
@@ -2581,10 +2700,6 @@
     var verifyHostKey = settingControl(card, 'profile.verifyHostKey');
     var fingerprint = settingControl(card, 'profile.hostKeySha256');
     if (verifyHostKey) verifyHostKey.disabled = !enabled;
-    if (fingerprint) {
-      fingerprint.required = enabled && Boolean(verifyHostKey && verifyHostKey.checked);
-      fingerprint.disabled = !enabled || !verifyHostKey || !verifyHostKey.checked;
-    }
     var clearPassword = settingControl(card, 'profile.clearPassword');
     if (clearPassword) {
       clearPassword.setCustomValidity(clearPassword.checked && enabled
@@ -2604,6 +2719,10 @@
         }
       }
     });
+    if (fingerprint) {
+      fingerprint.required = enabled && Boolean(verifyHostKey && verifyHostKey.checked);
+      fingerprint.disabled = !enabled || !verifyHostKey || !verifyHostKey.checked;
+    }
   }
 
   function updateServerCardPresentation(card) {
@@ -2615,7 +2734,9 @@
     var badge = $('.settings-server-state', card);
     card.classList.toggle('disabled', enabled && !enabled.checked);
     if (title) title.textContent = safeString(name && name.value.trim() || 'New map', 100);
-    if (detail) detail.textContent = safeString(id && id.value.trim() || 'Map ID required', 80);
+    if (detail) detail.textContent = safeString(id && id.value.trim() || 'Map ID required', 80)
+      + ' · ' + settingControl(card, 'host').value.trim() + ':' + settingControl(card, 'port').value
+      + ' · Profile import ' + (settingControl(card, 'profile.enabled').checked ? 'on' : 'off');
     if (badge) {
       badge.textContent = enabled && enabled.checked ? 'Enabled' : 'Disabled';
       badge.className = 'state-badge settings-server-state ' + (enabled && enabled.checked ? 'good' : '');
@@ -2632,6 +2753,7 @@
     card.dataset.originalId = safeString(server.id, 32);
     var heading = element('header', 'settings-server-heading');
     var identity = element('div', 'settings-server-title');
+    identity.append(bulkSelection('map', server.name || server.id || 'New map'));
     var copy = document.createElement('div');
     copy.append(element('h4', 'settings-server-name', server.name || 'New map'), element('p', 'settings-server-detail', server.id || 'Map ID required'));
     identity.append(element('span', 'state-badge settings-server-state ' + (server.enabled ? 'good' : ''), server.enabled ? 'Enabled' : 'Disabled'), copy);
@@ -2648,6 +2770,8 @@
         $('#settings-server-list').append(element('div', 'settings-server-empty empty-copy', 'No maps configured. Add a map when you are ready to activate the bridge.'));
       }
       updateSettingsDirtyState();
+      filterSettingsMaps();
+      $('#settings-add-server').focus();
     });
     actions.append(enabled, remove);
     heading.append(identity, actions);
@@ -2656,7 +2780,7 @@
     var rcon = settingSubsection('RCON connection', server.passwordConfigured ? 'Credential configured' : 'Credential required');
     var basicGrid = element('div', 'settings-field-grid');
     basicGrid.append(
-      settingInput('Map ID', 'id', server.id, { required: true, maximum: 32, pattern: '[A-Za-z0-9_-]{1,32}', help: 'Stable identifier used for commands and saved records.' }),
+      settingInput('Map ID', 'id', server.id, { required: true, maximum: 32, pattern: '[A-Za-z0-9_\\x2d]{1,32}', help: 'Presets use the exact ARK map identifier (ASA: TheIsland_WP; ASE: TheIsland). Keep saved IDs stable; use a unique suffix for another server on the same map.' }),
       settingInput('Display name', 'name', server.name, { required: true, maximum: 96 }),
       settingInput('RCON host', 'host', server.host, {
         required: true, maximum: 255, help: 'Use a private or loopback IP literal. Public RCON endpoints are refused.'
@@ -2707,7 +2831,7 @@
     $('[data-setting-field]', profileUser).dataset.profileRequired = 'true';
     var fingerprintField = settingInput('Host-key SHA-256', 'profile.hostKeySha256', profile.hostKeySha256, {
       full: true, required: profile.verifyHostKey !== false, maximum: 64,
-      pattern: '(?:[A-Fa-f0-9]{64}|SHA256:[A-Za-z0-9+/]{43}={0,1})',
+      pattern: '(?:[A-Fa-f0-9]{64}|SHA256:[A-Za-z0-9+\\x2f]{43}={0,1})',
       placeholder: 'SHA256:... or 64 hexadecimal characters',
       help: 'Recommended: scan and pin the key. If this host rotates keys, you may disable Verify host identity for this map, but an impersonating machine could then receive the SFTP password.'
     });
@@ -2715,8 +2839,8 @@
     scanFingerprint.type = 'button';
     scanFingerprint.addEventListener('click', function () { void scanProfileHostKey(card, scanFingerprint); });
     fingerprintField.append(scanFingerprint);
-    var profileMap = settingInput('ASA map name', 'profile.mapName', profile.mapName || suggestedAsaMapName(server), {
-      required: true, maximum: 64, pattern: '[A-Za-z0-9_-]{1,64}',
+    var profileMap = settingInput('ARK map name', 'profile.mapName', profile.mapName || suggestedMapName(server), {
+      required: true, maximum: 64, pattern: '[A-Za-z0-9_\\x2d]{1,64}',
       help: 'Filled automatically for recognized official map names; edit it if your save-directory token differs.'
     });
     profileFields.append(
@@ -2739,11 +2863,24 @@
     sftp.section.append(profileFields);
     body.append(rcon.section, sftp.section);
     card.append(heading, body);
+    body.id = 'settings-map-body-' + String(++state.settingsInputSequence);
+    body.hidden = true;
+    var edit = element('button', 'secondary-button settings-editor-toggle', 'Edit');
+    edit.type = 'button'; edit.setAttribute('aria-expanded', 'false'); edit.setAttribute('aria-controls', body.id);
+    edit.addEventListener('click', function () { toggleSettingsEditor(card, !body.hidden); });
+    actions.prepend(edit);
+    var profileAdvanced = element('details', 'settings-advanced');
+    profileAdvanced.append(element('summary', '', 'Advanced SFTP timing and size limits'));
+    var profileAdvancedGrid = element('div', 'settings-field-grid');
+    ['profile.connectTimeoutMs', 'profile.operationTimeoutMs', 'profile.retryIntervalMs', 'profile.revalidateIntervalMs', 'profile.maxFileBytes'].forEach(function (field) {
+      profileAdvancedGrid.append(settingControl(card, field).closest('.settings-field'));
+    });
+    profileAdvanced.append(profileAdvancedGrid); profileFields.append(profileAdvanced);
     var rconHostInput = settingControl(card, 'host');
     var profileHostInput = settingControl(card, 'profile.host');
     var profileMapInput = settingControl(card, 'profile.mapName');
     var previousRconHost = rconHostInput.value.trim();
-    var previousSuggestion = suggestedAsaMapName(server);
+    var previousSuggestion = suggestedMapName(server);
     rconHostInput.addEventListener('input', function () {
       if (!profileHostInput.value.trim() || profileHostInput.value.trim() === previousRconHost) {
         profileHostInput.value = rconHostInput.value.trim();
@@ -2752,7 +2889,7 @@
     });
     for (var sourceField of [settingControl(card, 'id'), settingControl(card, 'name')]) {
       sourceField.addEventListener('input', function () {
-        var nextSuggestion = suggestedAsaMapName({
+        var nextSuggestion = suggestedMapName({
           id: settingControl(card, 'id').value, name: settingControl(card, 'name').value
         });
         if (nextSuggestion && (!profileMapInput.value.trim() || profileMapInput.value.trim() === previousSuggestion)) {
@@ -2798,14 +2935,14 @@
     return boundedInteger(state.capabilities && state.capabilities.announcementMaxLength, 400, 1, 2_000);
   }
 
-  function buildSettingsTemplateRow(name, message) {
+  function buildSettingsTemplateRow(name, message, category) {
     var row = element('div', 'settings-template-row');
     row.dataset.settingsTemplate = 'true';
     var nameLabel = element('label', 'settings-field');
     nameLabel.append(element('span', '', 'Template name'));
     var nameInput = document.createElement('input');
     nameInput.type = 'text'; nameInput.required = true; nameInput.maxLength = 40;
-    nameInput.pattern = '[A-Za-z0-9][A-Za-z0-9 _-]{0,39}';
+    nameInput.pattern = '[A-Za-z0-9][A-Za-z0-9 _\\x2d]{0,39}';
     nameInput.autocomplete = 'off'; nameInput.dataset.templateField = 'name'; nameInput.value = name || '';
     nameLabel.append(nameInput, element('small', '', 'Letters, numbers, spaces, underscores, or hyphens.'));
     var messageLabel = element('label', 'settings-field');
@@ -2815,12 +2952,47 @@
     messageInput.value = message || '';
     configureCodePointMaximum(messageInput, announcementTemplateMaximum());
     messageLabel.append(messageInput, element('small', '', 'Sent exactly as written after staff review and confirmation.'));
+    var categoryLabel = element('label', 'settings-field');
+    categoryLabel.append(element('span', '', 'Category'));
+    var categoryInput = document.createElement('select'); categoryInput.dataset.templateField = 'category';
+    Object.keys(TEMPLATE_CATEGORIES).forEach(function (key) { categoryInput.append(new Option(TEMPLATE_CATEGORIES[key], key)); });
+    categoryInput.value = Object.hasOwn(TEMPLATE_CATEGORIES, category) ? category : 'general'; categoryLabel.append(categoryInput);
+    var fields = element('div', 'settings-template-fields settings-field-grid');
+    fields.id = 'settings-template-body-' + String(++state.settingsInputSequence); fields.hidden = true;
+    var preview = element('p', 'settings-template-preview');
+    var counter = element('small', 'settings-template-count'); messageLabel.append(counter);
+    var summary = element('div', 'settings-template-summary');
+    var title = element('strong', ''); var badge = element('span', 'state-badge');
+    var copy = element('div', 'settings-template-copy'); copy.append(title, badge, preview);
+    var actions = element('div', 'row-actions');
+    var edit = element('button', 'secondary-button settings-editor-toggle', 'Edit'); edit.type = 'button';
+    edit.setAttribute('aria-expanded', 'false'); edit.setAttribute('aria-controls', fields.id);
+    edit.addEventListener('click', function () { toggleSettingsEditor(row, !fields.hidden); });
+    var duplicate = element('button', 'quiet-button settings-template-duplicate', 'Duplicate'); duplicate.type = 'button';
+    duplicate.addEventListener('click', function () {
+      var used = new Set($all('[data-template-field="name"]', $('#settings-template-list')).map(function (input) { return input.value.trim().toLowerCase(); }));
+      var base = nameInput.value.trim() || 'Template'; var count = 1; var candidate;
+      do { var suffix = ' copy' + (count > 1 ? ' ' + count : ''); candidate = base.slice(0, 40 - suffix.length) + suffix; count += 1; } while (used.has(candidate.toLowerCase()));
+      var added = addSettingsTemplate(candidate, messageInput.value, categoryInput.value);
+      if (added) revealSettingsTemplate(added);
+    });
     var remove = element('button', 'danger-quiet-button settings-template-remove', 'Delete');
     remove.type = 'button';
     remove.addEventListener('click', function () {
+      if (!window.confirm('Delete ' + (nameInput.value.trim() || 'this template') + ' from the settings draft?')) return;
       row.remove(); renderSettingsTemplateEmpty(); updateSettingsDirtyState();
+      filterSettingsTemplates(); $('#settings-add-template').focus();
     });
-    row.append(nameLabel, messageLabel, remove);
+    function updateSummary() {
+      title.textContent = nameInput.value.trim() || 'New template';
+      badge.textContent = TEMPLATE_CATEGORIES[categoryInput.value] || 'General';
+      preview.textContent = messageInput.value.trim() || 'Add a broadcast message.';
+      counter.textContent = Array.from(messageInput.value).length + ' / ' + announcementTemplateMaximum() + ' characters';
+    }
+    nameInput.addEventListener('input', function () { nameInput.setCustomValidity(''); updateSummary(); });
+    messageInput.addEventListener('input', updateSummary); categoryInput.addEventListener('change', updateSummary);
+    fields.append(nameLabel, categoryLabel, messageLabel); actions.append(edit, duplicate, remove); summary.append(bulkSelection('template', name || 'New template'), copy, actions);
+    row.append(summary, fields); updateSummary();
     return row;
   }
 
@@ -2832,22 +3004,24 @@
     else if (!hasRows && !empty) list.append(element('div', 'settings-template-empty empty-copy', 'No templates configured. Add one or restore the starter set.'));
   }
 
-  function renderSettingsTemplates(templateMap) {
+  function renderSettingsTemplates(templateMap, categories) {
     var rows = Object.keys(templateMap || {}).map(function (name) {
-      return buildSettingsTemplateRow(name, templateMap[name]);
+      return buildSettingsTemplateRow(name, templateMap[name], categories && categories[name]);
     });
     $('#settings-template-list').replaceChildren.apply($('#settings-template-list'), rows);
     renderSettingsTemplateEmpty();
+    filterSettingsTemplates();
   }
 
-  function addSettingsTemplate(name, message) {
+  function addSettingsTemplate(name, message, category) {
     var list = $('#settings-template-list');
     if ($all('[data-settings-template]', list).length >= 32) {
       toast('Broadcast templates are limited to 32 entries.', 'warn'); return null;
     }
     var empty = $('.settings-template-empty', list); if (empty) empty.remove();
-    var row = buildSettingsTemplateRow(name || '', message || ''); list.append(row);
+    var row = buildSettingsTemplateRow(name || '', message || '', category); list.append(row);
     updateSettingsDirtyState();
+    filterSettingsTemplates();
     return row;
   }
 
@@ -2856,8 +3030,12 @@
       return input.value.trim().toLowerCase();
     }));
     var added = 0;
-    Object.keys(STARTER_ANNOUNCEMENT_TEMPLATES).forEach(function (name) {
-      if (!existing.has(name.toLowerCase()) && addSettingsTemplate(name, STARTER_ANNOUNCEMENT_TEMPLATES[name])) added += 1;
+    var presets = state.settingsProjection?.workflowPresets?.announcementTemplates;
+    if (!Array.isArray(presets)) presets = Object.keys(STARTER_ANNOUNCEMENT_TEMPLATES).map(function (name) {
+      return { name: name, message: STARTER_ANNOUNCEMENT_TEMPLATES[name], category: /maintenance|save/i.test(name) ? 'maintenance' : /event/i.test(name) ? 'events' : /rules/i.test(name) ? 'rules' : 'community' };
+    });
+    presets.forEach(function (preset) {
+      if (!existing.has(preset.name.toLowerCase()) && addSettingsTemplate(preset.name, preset.message, preset.category)) added += 1;
     });
     toast(added ? plural(added, 'starter template') + ' added. Review and apply to save.' : 'All starter templates are already present.', added ? 'good' : 'warn');
   }
@@ -2865,9 +3043,23 @@
   function renderSettingsPackages() {
     var list = $('#settings-package-list');
     if (!list) return;
-    var packages = itemPackages();
+    var allPackages = itemPackages();
+    var query = ($('#settings-package-search')?.value || '').trim().toLowerCase();
+    var filter = $('#settings-package-filter')?.value || '';
+    var packageSnapshot = JSON.stringify(allPackages) + ':' + query + ':' + filter + ':' + ($('#settings-package-group')?.value || 'none');
+    if (lastPackageSnapshot === packageSnapshot && list.firstElementChild) return;
+    lastPackageSnapshot = packageSnapshot;
+    var packages = allPackages.filter(function (entry) {
+      var text = (entry.name + ' ' + (entry.description || '')).toLowerCase();
+      return (!query || text.includes(query)) && (!filter || filter === 'all'
+        || (filter === 'starter' && entry.starterEnabled)
+        || (filter === 'boss' && /boss/i.test(text))
+        || (filter === 'shared' && entry.enabled)
+        || (filter === 'disabled' && !entry.enabled));
+    });
+    if ($('#settings-package-results')) $('#settings-package-results').textContent = packages.length + ' of ' + allPackages.length + ' packages';
     if (!packages.length) {
-      list.replaceChildren(element('div', 'settings-package-empty empty-copy', 'No item packages configured.'));
+      list.replaceChildren(element('div', 'settings-package-empty empty-copy', allPackages.length ? 'No matching packages. Change the search or filter.' : 'No item packages configured.'));
       return;
     }
     var cards = packages.map(function (itemPackage) {
@@ -2878,13 +3070,33 @@
       var badges = element('div', 'settings-package-badges');
       badges.append(element('span', 'state-badge ' + (itemPackage.enabled ? 'good' : 'bad'), itemPackage.enabled ? 'Enabled' : 'Disabled'));
       if (itemPackage.starterEnabled) badges.append(element('span', 'state-badge good', 'First join'));
+      if (/boss/i.test(itemPackage.name + ' ' + (itemPackage.description || ''))) badges.append(element('span', 'state-badge', 'Boss'));
       badges.append(element('span', 'secondary-value', plural(itemPackage.items.length, 'item type')));
       var edit = element('button', 'secondary-button', 'Edit');
       edit.type = 'button'; edit.dataset.editPackage = itemPackage.id;
       card.append(copy, badges, edit);
       return card;
     });
-    list.replaceChildren.apply(list, cards);
+    var grouping = $('#settings-package-group') ? $('#settings-package-group').value : 'none';
+    if (grouping === 'none') { list.replaceChildren.apply(list, cards); return; }
+    var groups = new Map();
+    packages.forEach(function (itemPackage, index) {
+      var meta = itemPackage.grouping || {};
+      var tier = meta.tier || 'standard';
+      var key = meta.category === 'boss' ? (grouping === 'tier' ? tier.charAt(0).toUpperCase() + tier.slice(1) : (meta.map && meta.boss ? meta.map + ' / ' + meta.boss : 'Other boss packages')) : 'Other packages';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(cards[index]);
+    });
+    var groupedNodes = Array.from(groups).sort(function (left, right) { return left[0].localeCompare(right[0]); }).map(function (entry) {
+      var details = element('details', 'package-group'); var key = grouping + ':' + entry[0];
+      details.dataset.packageGroup = key;
+      details.open = Boolean(query) || packageGroupStates.get(key) === true;
+      details.append(element('summary', '', entry[0] + ' · ' + plural(entry[1].length, 'package')));
+      var body = element('div', 'package-group-list'); body.append.apply(body, entry[1]); details.append(body);
+      details.addEventListener('toggle', function () { if (details.isConnected && !query) packageGroupStates.set(key, details.open); });
+      return details;
+    });
+    list.replaceChildren.apply(list, groupedNodes);
   }
 
   function packageItemRow(entry) {
@@ -3007,6 +3219,15 @@
     return output;
   }
 
+  function readSettingsTemplateCategories() {
+    var output = {};
+    $all('[data-settings-template]', $('#settings-template-list')).forEach(function (row) {
+      var name = $('[data-template-field="name"]', row).value.trim();
+      if (name) Object.defineProperty(output, name, { value: $('[data-template-field="category"]', row).value, enumerable: true, configurable: true });
+    });
+    return output;
+  }
+
   function renderSettingsProjection(projection) {
     state.settingsProjection = settingsProjectionFromPayload(projection);
     var current = state.settingsProjection;
@@ -3052,7 +3273,7 @@
     $('#settings-recurring-enabled').checked = reminder.enabled === true;
     $('#settings-recurring-interval').value = String(reminder.intervalMinutes || 60);
     $('#settings-recurring-message').value = reminder.message || 'Need help? Join {discordInvite} or type !cc help.';
-    renderSettingsTemplates(moderation.announcementTemplates);
+    renderSettingsTemplates(moderation.announcementTemplates, moderation.announcementTemplateCategories);
     $('#settings-raw-rcon-enabled').checked = moderation.allowRawRcon;
     $('#settings-rcon-allowlist').value = moderation.rawRconAllowlist.join('\n');
     $('#settings-rotate-token').setAttribute('aria-pressed', 'false');
@@ -3122,6 +3343,9 @@
     }
     state.settingsBaseline = JSON.stringify(readSettingsForm(false));
     updateSettingsDirtyState();
+    selectSettingsSection(settingsSection, false);
+    filterSettingsMaps();
+    if ($('#command-search-dialog') && $('#command-search-dialog').open) renderCommandSearch();
   }
 
   function splitSettingsList(value) {
@@ -3210,6 +3434,7 @@
         allowRawRcon: $('#settings-raw-rcon-enabled').checked,
         rawRconAllowlist: splitSettingsLines($('#settings-rcon-allowlist').value),
         announcementTemplates: readSettingsTemplates(),
+        announcementTemplateCategories: readSettingsTemplateCategories(),
         discordInviteUrl: $('#settings-discord-invite').value.trim(),
         recurringAnnouncements: [{
           enabled: $('#settings-recurring-enabled').checked,
@@ -3268,7 +3493,8 @@
     if (baseline.analytics.enabled !== current.analytics.enabled) {
       changes.push('Analytics: ' + (current.analytics.enabled ? 'Enable optional product analytics' : 'Disable product analytics'));
     }
-    if (JSON.stringify(baseline.moderation.announcementTemplates) !== JSON.stringify(current.moderation.announcementTemplates)) {
+    if (JSON.stringify(baseline.moderation.announcementTemplates) !== JSON.stringify(current.moderation.announcementTemplates)
+      || JSON.stringify(baseline.moderation.announcementTemplateCategories) !== JSON.stringify(current.moderation.announcementTemplateCategories)) {
       changes.push('Broadcast templates: Update reusable announcements');
     }
     if (baseline.moderation.allowRawRcon !== current.moderation.allowRawRcon
@@ -3288,6 +3514,14 @@
     return settingsChangeSummary().length > 0;
   }
 
+  function updateSettingsOverlaySpacing() {
+    var bar = $('#settings-change-bar');
+    var region = $('#toast-region');
+    if (bar && region && region.style && typeof bar.getBoundingClientRect === 'function') {
+      region.style.setProperty('--settings-change-bar-height', Math.ceil(bar.getBoundingClientRect().height) + 'px');
+    }
+  }
+
   function updateSettingsDirtyState() {
     if (!state.settingsProjection) return;
     var changes = settingsChangeSummary();
@@ -3295,6 +3529,411 @@
     setHidden($('#settings-change-bar'), !dirty);
     $('#settings-change-status').textContent = dirty ? plural(changes.length, 'change') : 'None';
     $('#settings-change-count').textContent = dirty ? plural(changes.length, 'unsaved change') : 'Unsaved changes';
+    updateSettingsOverlaySpacing();
+  }
+
+  function scrollSettingsTarget(target) {
+    if (!target || typeof target.scrollIntoView !== 'function') return;
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+  }
+
+  function selectSettingsSection(id, focus) {
+    var section = $('#' + id);
+    if (!section || !section.classList.contains('settings-card')) return;
+    settingsSection = id;
+    $all('.settings-sections > .settings-card').forEach(function (candidate) { candidate.hidden = candidate !== section; });
+    $all('[data-settings-jump]').forEach(function (button) {
+      var active = button.dataset.settingsJump === id;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+    });
+    if (focus) {
+      var heading = $('h3', section); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+      scrollSettingsTarget(section);
+    }
+  }
+
+  function toggleSettingsEditor(card, collapse) {
+    var body = $('.settings-server-body, .settings-template-fields', card);
+    if (!body) return;
+    body.hidden = Boolean(collapse);
+    var toggle = $('.settings-editor-toggle', card);
+    if (toggle) { toggle.setAttribute('aria-expanded', collapse ? 'false' : 'true'); toggle.textContent = collapse ? 'Edit' : 'Collapse'; }
+    if (!collapse) scrollSettingsTarget(card);
+  }
+
+  function revealSettingsField(input) {
+    if (!input) return;
+    var section = input.closest('.settings-card');
+    if (section) selectSettingsSection(section.id, false);
+    var card = input.closest('[data-settings-server], [data-settings-template]');
+    if (card) {
+      if (card.hidden && section) {
+        var kind = card.dataset.settingsServer ? 'map' : 'template';
+        var search = $('#settings-' + kind + '-search');
+        var filter = $('#settings-' + kind + (kind === 'map' ? '-filter' : '-category'));
+        if (search) search.value = ''; if (filter) filter.selectedIndex = 0;
+        if (kind === 'map') filterSettingsMaps(); else filterSettingsTemplates();
+      }
+      card.hidden = false;
+      if (!settingsMapWizard || settingsMapWizard.card !== card) toggleSettingsEditor(card, false);
+    }
+    var ancestor = input.parentElement;
+    while (ancestor && ancestor !== document.body) { if (ancestor.tagName === 'DETAILS') ancestor.open = true; ancestor = ancestor.parentElement; }
+  }
+
+  function filterSettingsMaps() {
+    var list = $('#settings-server-list'); if (!list) return;
+    var query = ($('#settings-map-search')?.value || '').trim().toLowerCase();
+    var filter = $('#settings-map-filter')?.value || '';
+    var cards = $all('[data-settings-server]', list); var visible = 0;
+    cards.forEach(function (card) {
+      var text = ['id', 'name', 'host'].map(function (field) { return settingControl(card, field).value; }).join(' ').toLowerCase();
+      var enabled = settingControl(card, 'enabled').checked;
+      card.hidden = Boolean((query && !text.includes(query)) || (filter === 'enabled' && !enabled) || (filter === 'disabled' && enabled));
+      if (!card.hidden) visible += 1;
+    });
+    if ($('#settings-map-results')) $('#settings-map-results').textContent = visible + ' of ' + cards.length + ' maps';
+    var empty = $('.settings-map-no-results', list);
+    if (cards.length && !visible && !empty) list.append(element('div', 'settings-map-no-results empty-copy', 'No matching maps. Change the search or filter.'));
+    else if ((visible || !cards.length) && empty) empty.remove();
+    updateBulkSelection('map');
+  }
+
+  function filterSettingsTemplates() {
+    var list = $('#settings-template-list'); if (!list) return;
+    var query = ($('#settings-template-search')?.value || '').trim().toLowerCase();
+    var category = $('#settings-template-category')?.value || '';
+    var rows = $all('[data-settings-template]', list); var visible = 0;
+    rows.forEach(function (row) {
+      var text = ['name', 'message', 'category'].map(function (field) { return $('[data-template-field="' + field + '"]', row).value; }).join(' ').toLowerCase();
+      row.hidden = Boolean((query && !text.includes(query)) || (category && category !== 'all' && $('[data-template-field="category"]', row).value !== category));
+      if (!row.hidden) visible += 1;
+    });
+    if ($('#settings-template-results')) $('#settings-template-results').textContent = visible + ' of ' + rows.length + ' templates';
+    var empty = $('.settings-template-no-results', list);
+    if (rows.length && !visible && !empty) list.append(element('div', 'settings-template-no-results empty-copy', 'No matching templates. Change the search or category.'));
+    else if ((visible || !rows.length) && empty) empty.remove();
+    updateBulkSelection('template');
+  }
+
+  function bulkSelection(kind, name) {
+    var label = element('label', 'bulk-row-select');
+    var input = document.createElement('input'); input.type = 'checkbox';
+    input.setAttribute('data-' + kind + '-select', '');
+    input.setAttribute('aria-label', 'Select ' + kind + ' ' + name);
+    input.addEventListener('change', function (event) { event.stopPropagation(); updateBulkSelection(kind); });
+    label.append(input, element('span', 'visually-hidden', 'Select ' + kind + ' ' + name));
+    return label;
+  }
+
+  function bulkRows(kind) {
+    return $all(kind === 'map' ? '[data-settings-server]' : '[data-settings-template]', $(kind === 'map' ? '#settings-server-list' : '#settings-template-list'));
+  }
+
+  function updateBulkSelection(kind) {
+    var count = 0; var visible = 0;
+    bulkRows(kind).forEach(function (row) {
+      var input = $('[data-' + kind + '-select]', row); if (!input) return;
+      var name = kind === 'map' ? settingControl(row, 'name').value : $('[data-template-field="name"]', row).value;
+      input.setAttribute('aria-label', 'Select ' + kind + ' ' + (name || 'unnamed'));
+      if (row.hidden) input.checked = false; else visible += 1;
+      if (input.checked) count += 1;
+      row.classList.toggle('bulk-selected', input.checked);
+    });
+    var prefix = '#settings-' + kind + '-bulk-';
+    if ($(prefix + 'count')) $(prefix + 'count').textContent = count + ' selected · ' + visible + ' visible';
+    ['clear', 'enable', 'disable', 'remove', 'apply', 'delete'].forEach(function (action) { if ($(prefix + action)) $(prefix + action).disabled = !count; });
+    if ($(prefix + 'select-visible')) $(prefix + 'select-visible').disabled = !visible;
+    if (count && $('#settings-' + kind + '-bulk-panel')) $('#settings-' + kind + '-bulk-panel').open = true;
+  }
+
+  function selectBulk(kind, selected) {
+    bulkRows(kind).forEach(function (row) { var input = $('[data-' + kind + '-select]', row); if (input) input.checked = Boolean(selected && !row.hidden); });
+    updateBulkSelection(kind);
+  }
+
+  async function openCommandSearch() {
+    if (!state.session || state.passwordChangeRequired || $('dialog[open]')) return;
+    var dialog = $('#command-search-dialog'); if (!dialog) return;
+    state.lastDialogTrigger = document.activeElement;
+    var generation = ++searchGeneration;
+    $('#command-search-input').value = ''; dialog.showModal(); renderCommandSearch();
+    $('#command-search-input').focus();
+    if (isAdministrator() && !state.settingsProjection && !state.settingsController) {
+      $('#command-search-status').textContent = 'Loading searchable map and template settings…';
+      await loadSettings({ quiet: true });
+      if (generation !== searchGeneration || !dialog.open || !state.session) return;
+      renderCommandSearch();
+      if (!state.settingsProjection) $('#command-search-status').textContent += ' Settings unavailable. Close and reopen search to retry.';
+    }
+  }
+
+  function renderCommandSearch() {
+    searchRole = currentRole();
+    var query = $('#command-search-input').value.trim().toLowerCase(); var entries = [];
+    function add(label, type, keywords, run) { entries.push({ label: label, type: type, text: (label + ' ' + type + ' ' + (keywords || '')).toLowerCase(), run: run }); }
+    Object.keys(pageMeta).forEach(function (tab) {
+      if (tabAllowed(tab)) add(pageMeta[tab][0], 'Section', pageMeta[tab][1], function () { if (activateTab(tab)) $('#workspace').focus({ preventScroll: true }); });
+    });
+    var indexedActions = new Set();
+    $all('#operation-groups [data-open-action]').forEach(function (button) {
+      var name = button.dataset.openAction;
+      if (!actionAvailable(name) || indexedActions.has(name)) return;
+      indexedActions.add(name);
+      var title = $('strong', button);
+      add(title ? title.textContent : name, 'Operation', '', function () { if (actionAvailable(name)) openAction(name, {}, state.lastDialogTrigger); });
+    });
+    if (isAdministrator()) {
+      [['settings-general', 'General settings'], ['settings-maps', 'Map servers'], ['settings-discord', 'Discord settings'],
+        ['settings-analytics', 'Product analytics'], ['settings-templates', 'Broadcast templates'],
+        ['settings-packages', 'Item packages'], ['settings-security', 'Instance security']].forEach(function (entry) {
+        if ($('#' + entry[0])) add(entry[1], 'Settings section', entry[0].replaceAll('-', ' '), function () { if (isAdministrator() && activateTab('settings')) selectSettingsSection(entry[0], true); });
+      });
+      bulkRows('map').forEach(function (row) {
+        var name = settingControl(row, 'name').value; var id = settingControl(row, 'id').value;
+        add(name || id || 'Unnamed map', 'Map draft', id, function () {
+          if (!isAdministrator() || !activateTab('settings')) return; $('#settings-map-search').value = ''; $('#settings-map-filter').value = 'all';
+          selectSettingsSection('settings-maps', false); filterSettingsMaps(); toggleSettingsEditor(row, false); settingControl(row, 'name').focus({ preventScroll: true });
+        });
+      });
+      bulkRows('template').forEach(function (row) {
+        var name = $('[data-template-field="name"]', row).value;
+        add(name || 'Unnamed template', 'Template draft', $('[data-template-field="message"]', row).value + ' ' + $('[data-template-field="category"]', row).value, function () { if (isAdministrator() && activateTab('settings')) revealSettingsTemplate(row); });
+      });
+      itemPackages().forEach(function (itemPackage) {
+        add(itemPackage.name, 'Package', itemPackage.description, function () { if (isAdministrator()) openPackageEditor(itemPackage); });
+      });
+    }
+    state.servers.forEach(function (server) { add(server.serverName || server.serverId, 'Live map', server.serverId, function () { openMapPlayers(String(server.serverId)); }); });
+    state.players.forEach(function (player) {
+      var name = player.survivorName || player.name; if (!name) return;
+      add(name, 'Player', player.serverName || '', function () { if (!activateTab('players')) return; $('#server-scope').value = player.serverId || ''; $('#player-search').value = name; loadPlayers({ quiet: false }); $('#player-search').focus({ preventScroll: true }); });
+    });
+    var matches = entries.filter(function (entry) { return !query || query.split(/\s+/).every(function (term) { return entry.text.includes(term); }); });
+    var shown = matches.slice(0, 60);
+    $('#command-search-status').textContent = matches.length + ' results' + (matches.length > shown.length ? ' · showing first 60; refine your search' : '') + '. Searches available dashboard content.';
+    var nodes = shown.map(function (entry) {
+      var button = element('button', 'command-search-result'); button.type = 'button';
+      button.append(element('strong', '', entry.label), element('span', '', entry.type));
+      button.addEventListener('click', function () {
+        if (!state.session || state.passwordChangeRequired) return;
+        $('#command-search-dialog').close();
+        window.setTimeout(function () { if (state.session && !state.passwordChangeRequired) entry.run(); }, 0);
+      }); return button;
+    });
+    $('#command-search-results').replaceChildren.apply($('#command-search-results'), nodes.length ? nodes : [element('p', 'empty-copy', 'No matching destinations. Try a map, template, package, or section name.')]);
+  }
+
+  function bindEvolutionEvents() {
+    if ($('#command-search-open')) $('#command-search-open').addEventListener('click', openCommandSearch);
+    if ($('#command-search-input')) $('#command-search-input').addEventListener('input', renderCommandSearch);
+    document.addEventListener('keydown', function (event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && state.session && !state.passwordChangeRequired && !$('dialog[open]')) { event.preventDefault(); openCommandSearch(); }
+    });
+    if ($('#command-search-dialog')) $('#command-search-dialog').addEventListener('keydown', function (event) {
+      var buttons = $all('.command-search-result', this); var current = buttons.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown' && buttons.length) { event.preventDefault(); buttons[Math.min(current + 1, buttons.length - 1)].focus(); }
+      if (event.key === 'ArrowUp') { event.preventDefault(); if (current > 0) buttons[current - 1].focus(); else $('#command-search-input').focus(); }
+      if (event.key === 'Enter' && document.activeElement === $('#command-search-input') && buttons.length) { event.preventDefault(); buttons[0].click(); }
+    });
+    ['map', 'template'].forEach(function (kind) {
+      var prefix = '#settings-' + kind + '-bulk-';
+      ['select-visible', 'clear'].forEach(function (action) { if ($(prefix + action)) $(prefix + action).addEventListener('click', function () { selectBulk(kind, action === 'select-visible'); }); });
+      (kind === 'map' ? ['enable', 'disable', 'remove'] : ['apply', 'delete']).forEach(function (action) { if ($(prefix + action)) $(prefix + action).addEventListener('click', function () { stageBulk(kind, action); }); });
+    });
+    if ($('#settings-package-group')) $('#settings-package-group').addEventListener('change', renderSettingsPackages);
+    $all('[data-quick-action]').forEach(function (button) { button.addEventListener('click', function () {
+      var action = button.dataset.quickAction;
+      if (action === 'search') openCommandSearch();
+      else if (action === 'maps') { if (isAdministrator() && activateTab('settings')) selectSettingsSection('settings-maps', true); }
+      else if (activateTab(action)) $('#workspace').focus({ preventScroll: true });
+    }); });
+  }
+
+  function stageBulk(kind, action) {
+    if (!isAdministrator() || !state.settingsProjection) return;
+    var rows = bulkRows(kind).filter(function (row) { return !row.hidden && $('[data-' + kind + '-select]', row).checked; });
+    if (!rows.length) return;
+    var removing = action === 'remove' || action === 'delete';
+    if (removing && !window.confirm('Remove ' + plural(rows.length, kind === 'map' ? 'map' : 'template') + ' from the settings draft? Review & apply is required to save.')) return;
+    var category = $('#settings-template-bulk-category').value;
+    if (kind === 'template' && !removing && !Object.hasOwn(TEMPLATE_CATEGORIES, category)) { toast('Choose a valid template category.', 'bad'); return; }
+    rows.forEach(function (row) {
+      if (removing) { $all('.settings-secret-input', row).forEach(function (input) { input.value = ''; resetPasswordToggle(input); }); row.remove(); }
+      else if (kind === 'map') { settingControl(row, 'enabled').checked = action === 'enable'; updateServerCardPresentation(row); }
+      else { var input = $('[data-template-field="category"]', row); input.value = category; input.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    if (kind === 'template') renderSettingsTemplateEmpty();
+    else if (!bulkRows('map').length) $('#settings-server-list').replaceChildren(element('div', 'settings-server-empty empty-copy', 'No maps configured. Add a map when you are ready to activate the bridge.'));
+    updateSettingsDirtyState();
+    if (kind === 'map') filterSettingsMaps(); else filterSettingsTemplates();
+    toast(plural(rows.length, kind === 'map' ? 'map' : 'template') + ' updated in the draft. Review & apply to save.', 'good');
+    if (removing) {
+      var next = $('#settings-' + kind + '-bulk-select-visible');
+      if (!next || next.disabled) next = $(kind === 'map' ? '#settings-add-server' : '#settings-add-template');
+      if (next) next.focus();
+    }
+  }
+
+  function revealSettingsTemplate(row) {
+    if ($('#settings-template-search')) $('#settings-template-search').value = '';
+    if ($('#settings-template-category')) $('#settings-template-category').value = 'all';
+    selectSettingsSection('settings-templates', false); filterSettingsTemplates();
+    toggleSettingsEditor(row, false);
+    $('[data-template-field="name"]', row).focus({ preventScroll: true }); scrollSettingsTarget(row);
+  }
+
+  function canonicalSettingsHost(value) {
+    var host = String(value || '').trim().toLowerCase().replace(/^\[|\]$/gu, '');
+    if (host.includes(':')) {
+      try { host = new URL('http://[' + host + ']/').hostname.replace(/^\[|\]$/gu, ''); } catch (_) { return host; }
+      var mapped = /^::ffff:([a-f0-9]{1,4}):([a-f0-9]{1,4})$/u.exec(host);
+      if (mapped) { var high = parseInt(mapped[1], 16); var low = parseInt(mapped[2], 16); return [high >> 8, high & 255, low >> 8, low & 255].join('.'); }
+    }
+    return host;
+  }
+
+  function suggestSettingsPort(host, start) {
+    var used = new Set($all('[data-settings-server]', $('#settings-server-list')).filter(function (card) {
+      return canonicalSettingsHost(settingControl(card, 'host').value) === canonicalSettingsHost(host);
+    }).map(function (card) { return Number(settingControl(card, 'port').value); }));
+    var port = Math.max(1, Number(start) || 27020);
+    while (used.has(port) && port <= 65535) port += 1;
+    return port <= 65535 ? port : null;
+  }
+
+  function privateSettingsHost(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (raw.startsWith('[') || raw.endsWith(']')) return false;
+    var host = canonicalSettingsHost(raw.split('%', 1)[0]);
+    if (/^(?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3}$/u.test(host)) {
+      var parts = host.split('.').map(Number);
+      return parts.every(function (part) { return part <= 255; }) && (parts[0] === 10 || parts[0] === 127
+        || (parts[0] === 169 && parts[1] === 254) || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
+        || (parts[0] === 192 && parts[1] === 168));
+    }
+    if (!host.includes(':')) return false;
+    try { new URL('http://[' + host + ']/'); } catch (_) { return false; }
+    return host === '::1' || /^f[cd]/u.test(host) || /^fe[89ab]/u.test(host);
+  }
+
+  function closeMapWizard(staged) {
+    if (!settingsMapWizard) return;
+    var wizard = settingsMapWizard; settingsMapWizard = null;
+    if (!staged) $all('.settings-secret-input', wizard.card).forEach(function (input) { input.value = ''; });
+    wizard.dialog.close(); wizard.dialog.remove();
+    if (wizard.trigger && wizard.trigger.isConnected && state.session) wizard.trigger.focus({ preventScroll: true });
+  }
+
+  function openMapWizard(card) {
+    closeMapWizard(false);
+    var dialog = element('dialog', 'action-dialog settings-map-wizard'); dialog.id = 'settings-map-wizard';
+    dialog.setAttribute('aria-labelledby', 'settings-map-wizard-title');
+    var shell = element('div', 'dialog-shell'); var header = element('header', 'dialog-header');
+    var heading = element('div', ''); var title = element('h2', '', 'Add map'); title.id = 'settings-map-wizard-title';
+    heading.append(title, element('p', '', 'Stage a map, then review and apply your settings.'));
+    var cancel = element('button', 'icon-button', 'Cancel'); cancel.type = 'button'; cancel.id = 'settings-map-wizard-cancel';
+    cancel.addEventListener('click', function () { closeMapWizard(false); }); header.append(heading, cancel);
+    var steps = element('ol', 'wizard-steps'); steps.setAttribute('aria-label', 'Map setup progress');
+    ['Identity', 'RCON', 'Profile import', 'Review'].forEach(function (name) { steps.append(element('li', 'wizard-step', name)); });
+    var content = element('div', 'wizard-content');
+    var presetLabel = element('label', 'settings-field wizard-preset'); presetLabel.append(element('span', '', 'Map preset'));
+    var preset = document.createElement('select'); preset.id = 'settings-map-preset'; preset.append(new Option('Custom map', ''));
+    var presets = settingsMapPresets();
+    ['ASA', 'ASE'].forEach(function (game) {
+      var group = document.createElement('optgroup');
+      group.label = game === 'ASA' ? 'ARK: Survival Ascended (ASA)' : 'ARK: Survival Evolved (ASE)';
+      presets.filter(function (entry) { return (entry.game || 'ASA') === game; }).forEach(function (entry) {
+        group.append(new Option(entry.name + ' — ' + entry.mapName, entry.mapName));
+      });
+      if (group.children.length) preset.append(group);
+    });
+    presetLabel.append(preset);
+    var review = element('div', 'wizard-review'); review.hidden = true;
+    content.append(presetLabel, card, review);
+    var footer = element('footer', 'dialog-footer');
+    var back = element('button', 'quiet-button', 'Back'); back.type = 'button'; back.id = 'settings-map-wizard-back';
+    var next = element('button', 'primary-button', 'Next'); next.type = 'button'; next.id = 'settings-map-wizard-next'; footer.append(back, next);
+    shell.append(header, steps, content, footer); dialog.append(shell); document.body.append(dialog);
+    var body = $('.settings-server-body', card); var cardHeader = $('.settings-server-heading', card);
+    var rcon = body.children[0]; var profile = body.children[1]; var basic = $('.settings-field-grid', rcon);
+    var advanced = $('details', rcon); var rconHeading = $('.settings-subsection-heading', rcon);
+    settingsMapWizard = { dialog: dialog, card: card, trigger: document.activeElement, step: 0 };
+    body.hidden = false; cardHeader.hidden = true;
+    function showStep(index) {
+      if (!settingsMapWizard) return;
+      settingsMapWizard.step = index; card.hidden = index === 3; presetLabel.hidden = index !== 0; review.hidden = index !== 3;
+      rcon.hidden = index > 1; profile.hidden = index !== 2; advanced.hidden = index !== 1; rconHeading.hidden = index !== 1;
+      Array.from(basic.children).forEach(function (field) {
+        var input = $('[data-setting-field]', field); var identity = input && ['id', 'name'].includes(input.dataset.settingField);
+        field.hidden = index === 0 ? !identity : index === 1 ? identity : false;
+      });
+      Array.from(steps.children).forEach(function (step, position) { if (position === index) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current'); });
+      back.disabled = index === 0; next.textContent = index === 3 ? 'Stage map' : 'Next';
+      if (index === 3) {
+        var values = readSettingsServer(card, false);
+        review.replaceChildren(element('h3', '', values.name), element('p', '', 'Map ID: ' + values.id),
+          element('p', '', 'RCON: ' + values.host + ':' + values.port),
+          element('p', '', values.profileImport.enabled ? 'Profile import: ' + values.profileImport.host + ':' + values.profileImport.port + ' · ' + values.profileImport.mapName : 'Profile import is disabled.'),
+          element('p', 'field-help', 'The map will be added to your draft. Review & apply saves the configuration; restart activates it. Credentials stay hidden.'));
+      }
+      content.scrollTop = 0;
+      var initial = index === 0 ? preset : index === 1 ? settingControl(card, 'host') : index === 2 ? settingControl(card, 'profile.enabled') : next;
+      initial.focus({ preventScroll: true });
+    }
+    function validStep(index) {
+      var id = settingControl(card, 'id'); var port = settingControl(card, 'port'); var host = settingControl(card, 'host');
+      id.setCustomValidity(''); port.setCustomValidity('');
+      host.setCustomValidity(privateSettingsHost(host.value) ? '' : 'Enter a private or loopback IP address for RCON.');
+      var directories = settingControl(card, 'profile.directories');
+      directories.setCustomValidity(splitSettingsLines(directories.value).length > 16 ? 'Profile directories are limited to 16 paths.' : '');
+      var otherCards = $all('[data-settings-server]', $('#settings-server-list'));
+      if (otherCards.some(function (entry) { return settingControl(entry, 'id').value.trim().toLowerCase() === id.value.trim().toLowerCase(); })) id.setCustomValidity('Each map ID must be unique.');
+      if (otherCards.some(function (entry) { return canonicalSettingsHost(settingControl(entry, 'host').value) === canonicalSettingsHost(settingControl(card, 'host').value) && Number(settingControl(entry, 'port').value) === Number(port.value); })) port.setCustomValidity('This RCON host and port already belong to another map.');
+      var fields = $all('input, textarea, select', card).filter(function (input) {
+        var field = input.dataset.settingField || '';
+        return !input.disabled && (index === 0 ? ['id', 'name'].includes(field) : index === 1 ? !['id', 'name', 'enabled'].includes(field) && !field.startsWith('profile.') : field.startsWith('profile.'));
+      });
+      var invalid = fields.find(function (input) { return !input.checkValidity(); });
+      if (invalid) { showStep(index); revealSettingsField(invalid); invalid.reportValidity(); return false; }
+      return true;
+    }
+    preset.addEventListener('change', function () {
+      var entry = presets.find(function (candidate) { return candidate.mapName === preset.value; }); if (!entry) return;
+      var used = new Set($all('[data-setting-field="id"]', $('#settings-server-list')).map(function (input) { return input.value.trim().toLowerCase(); }));
+      var id = entry.mapName; var suffix = 2; while (used.has(id.toLowerCase())) id = entry.mapName + '-' + suffix++;
+      settingControl(card, 'id').value = id; settingControl(card, 'name').value = entry.name; settingControl(card, 'profile.mapName').value = entry.mapName;
+      updateServerCardPresentation(card);
+    });
+    var portEdited = false; settingControl(card, 'port').addEventListener('input', function () { portEdited = true; this.setCustomValidity(''); });
+    settingControl(card, 'host').addEventListener('input', function () {
+      if (!settingsMapWizard || settingsMapWizard.card !== card || portEdited) return;
+      var suggestion = suggestSettingsPort(this.value, 27020); settingControl(card, 'port').value = suggestion == null ? '' : String(suggestion);
+    });
+    card.addEventListener('input', function () { updateServerCardPresentation(card); });
+    card.addEventListener('change', function () { updateServerCardPresentation(card); });
+    back.addEventListener('click', function () { showStep(Math.max(0, settingsMapWizard.step - 1)); });
+    next.addEventListener('click', function () {
+      var index = settingsMapWizard.step;
+      if (index < 3) { if (validStep(index)) showStep(index + 1); return; }
+      for (var step = 0; step < 3; step += 1) if (!validStep(step)) return;
+      rcon.hidden = false; profile.hidden = false; advanced.hidden = false; rconHeading.hidden = false;
+      Array.from(basic.children).forEach(function (field) { field.hidden = false; }); cardHeader.hidden = false; card.hidden = false;
+      var empty = $('.settings-server-empty', $('#settings-server-list')); if (empty) empty.remove();
+      $('#settings-server-list').append(card); toggleSettingsEditor(card, true); closeMapWizard(true);
+      if ($('#settings-map-search')) $('#settings-map-search').value = '';
+      if ($('#settings-map-filter')) $('#settings-map-filter').value = 'all';
+      selectSettingsSection('settings-maps', false); filterSettingsMaps(); updateSettingsDirtyState();
+      $('.settings-editor-toggle', card).focus({ preventScroll: true }); scrollSettingsTarget(card);
+      toast('Map staged. Review & apply to save, then restart to activate.', 'good');
+    });
+    dialog.addEventListener('cancel', function (event) { event.preventDefault(); closeMapWizard(false); });
+    dialog.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && event.target.tagName === 'INPUT' && event.target.type !== 'checkbox') { event.preventDefault(); next.click(); }
+    });
+    dialog.showModal(); showStep(0);
   }
 
   function addSettingsServer() {
@@ -3305,7 +3944,7 @@
     var number = cards.length + 1;
     while (used.has('map' + String(number))) number += 1;
     var server = {
-      id: 'map' + String(number), name: 'New map ' + String(number), host: '127.0.0.1', port: Math.min(65_535, 27019 + number),
+      id: 'map' + String(number), name: 'New map ' + String(number), host: '127.0.0.1', port: suggestSettingsPort('127.0.0.1', 27020),
       enabled: true, pollIntervalMs: 1_000, playerRefreshIntervalMs: 15_000, connectTimeoutMs: 3_000,
       commandTimeoutMs: 5_000, fragmentIdleMs: 100, retries: 2, passwordConfigured: false,
       profileImport: {
@@ -3315,15 +3954,11 @@
       }
     };
     var card = buildSettingsServerCard(server);
-    var empty = $('.settings-server-empty', $('#settings-server-list'));
-    if (empty) empty.remove();
-    $('#settings-server-list').append(card);
-    updateSettingsDirtyState();
-    var name = settingControl(card, 'name');
-    name.focus(); name.select();
+    openMapWizard(card);
   }
 
   function discardSettingsChanges(options) {
+    closeMapWizard(false);
     if (state.settingsProjection) renderSettingsProjection(state.settingsProjection);
     clearSettingSecretInputs();
     if ($('#settings-review-dialog').open) $('#settings-review-dialog').close();
@@ -3367,7 +4002,7 @@
     $all('[data-setting-field="profile.directories"]', $('#settings-server-list')).forEach(function (input) {
       input.setCustomValidity('');
     });
-    var ids = new Set();
+    var ids = new Set(); var endpoints = new Set();
     for (var card of cards) {
       var idInput = settingControl(card, 'id');
       var id = idInput.value.trim().toLowerCase();
@@ -3377,6 +4012,13 @@
         return false;
       }
       ids.add(id);
+      var hostInput = settingControl(card, 'host'); var portInput = settingControl(card, 'port');
+      hostInput.setCustomValidity(privateSettingsHost(hostInput.value) ? '' : 'Enter a private or loopback IP address for RCON.');
+      if (!hostInput.checkValidity()) { hostInput.reportValidity(); return false; }
+      var endpoint = canonicalSettingsHost(hostInput.value) + ':' + portInput.value;
+      portInput.setCustomValidity(endpoints.has(endpoint) ? 'This RCON host and port already belong to another map.' : '');
+      if (!portInput.checkValidity()) { portInput.reportValidity(); return false; }
+      endpoints.add(endpoint);
       var directoryInput = settingControl(card, 'profile.directories');
       if (splitSettingsLines(directoryInput.value).length > 16) {
         directoryInput.setCustomValidity('Profile directories are limited to 16 paths.');
@@ -3394,6 +4036,10 @@
       var templateMessageInput = $('[data-template-field="message"]', templateRow);
       templateNameInput.setCustomValidity(''); templateMessageInput.setCustomValidity('');
       var templateName = templateNameInput.value.trim().toLowerCase();
+      if (['__proto__', 'constructor', 'prototype'].includes(templateName)) {
+        templateNameInput.setCustomValidity('Choose another template name; this name is reserved.');
+        templateNameInput.reportValidity(); return false;
+      }
       if (templateNames.has(templateName)) {
         templateNameInput.setCustomValidity('Template names must be unique.');
         templateNameInput.reportValidity(); return false;
@@ -3452,7 +4098,9 @@
         return false;
       }
     }
-    var valid = form.reportValidity();
+    var invalid = $all('input, textarea, select', form).find(function (input) { return !input.disabled && !input.checkValidity(); });
+    if (invalid) { revealSettingsField(invalid); invalid.reportValidity(); }
+    var valid = !invalid;
     if (!valid) showFormError($('#settings-error'), 'Review the highlighted configuration fields.');
     return valid;
   }
@@ -4066,10 +4714,14 @@
     } else if (field.type === 'template') {
       input = document.createElement('select');
       setCommonFieldAttributes(input, field);
-      var options = [new Option('Choose a configured template', '')].concat(templates().map(function (entry) {
-        return new Option(entry.label, entry.value);
-      }));
-      input.replaceChildren.apply(input, options);
+      input.append(new Option('Choose a configured template', ''));
+      var availableTemplates = templates();
+      Object.keys(TEMPLATE_CATEGORIES).forEach(function (category) {
+        var entries = availableTemplates.filter(function (entry) { return (entry.category || 'general') === category; });
+        if (!entries.length) return;
+        var group = document.createElement('optgroup'); group.label = TEMPLATE_CATEGORIES[category];
+        entries.forEach(function (entry) { group.append(new Option(entry.label, entry.value)); }); input.append(group);
+      });
     } else if (field.type === 'package') {
       input = document.createElement('select');
       setCommonFieldAttributes(input, field);
@@ -4109,151 +4761,383 @@
   }
 
   function itemFieldNode(field, label) {
+    label.classList.add('item-picker');
     var search = document.createElement('input');
-    search.type = 'search';
-    search.placeholder = field.placeholder || 'Search catalog';
-    search.autocomplete = 'off';
-    search.spellcheck = false;
-    search.setAttribute('role', 'combobox');
-    search.setAttribute('aria-autocomplete', 'list');
+    search.type = 'search'; search.placeholder = field.placeholder || 'Search catalog';
+    search.autocomplete = 'off'; search.spellcheck = false;
+    search.setAttribute('role', 'combobox'); search.setAttribute('aria-autocomplete', 'list');
     search.setAttribute('aria-expanded', 'false');
-    state.itemComboboxSequence += 1;
-    var resultsId = 'item-combobox-results-' + state.itemComboboxSequence;
+    var resultsId = 'item-combobox-results-' + (++state.itemComboboxSequence);
     search.setAttribute('aria-controls', resultsId);
     if (field.required) search.required = true;
-    var hidden = document.createElement('input');
-    hidden.type = 'hidden';
-    hidden.dataset.option = field.name;
-    var results = element('div', 'combobox-results');
-    results.id = resultsId;
-    results.setAttribute('role', 'listbox');
-    results.hidden = true;
-    label.append(search, hidden, results);
+    var hidden = document.createElement('input'); hidden.type = 'hidden'; hidden.dataset.option = field.name;
+    var status = element('span', 'item-search-status', 'Search the trusted catalog.');
+    status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    var results = element('div', 'combobox-results'); results.id = resultsId;
+    results.setAttribute('role', 'listbox'); results.setAttribute('aria-label', field.label || 'Catalog items'); results.hidden = true;
+    results._items = []; results._nodes = new Map(); results._active = -1;
+    results._status = status; results._persistent = Boolean(field.persistent); results._generation = 0;
+    label.append(search, hidden, status, results);
+    results.addEventListener('scroll', function () { drawItemWindow(search, hidden, results); });
     search.addEventListener('input', function () {
-      hidden.value = '';
-      search.setCustomValidity('Choose an item from the trusted catalog results.');
-      var existingTimer = state.itemSearchTimers.get(search);
-      if (existingTimer) window.clearTimeout(existingTimer);
-      results.replaceChildren(element('div', 'combobox-loading', 'Searching trusted catalog...'));
-      results.hidden = false;
-      label.classList.add('combobox-open');
-      search.setAttribute('aria-expanded', 'true');
+      hidden.value = ''; hidden._item = null;
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      search.setCustomValidity(field.required ? 'Choose an item from the trusted catalog results.' : '');
+      results._generation += 1;
+      var previousController = state.itemControllers.get(search); if (previousController) previousController.abort();
+      var existingTimer = state.itemSearchTimers.get(search); if (existingTimer) window.clearTimeout(existingTimer);
+      results.dataset.pending = 'true'; results.setAttribute('aria-busy', 'true');
+      status.textContent = 'Searching…'; results.hidden = false;
+      label.classList.add('combobox-open'); search.setAttribute('aria-expanded', 'true');
       state.itemSearchTimers.set(search, window.setTimeout(function () {
-        state.itemSearchTimers.delete(search);
-        loadItems(search.value, search, hidden, results);
-      }, 80));
+        state.itemSearchTimers.delete(search); loadItems(search.value, search, hidden, results);
+      }, 180));
     });
     search.addEventListener('focus', function () {
-      if (!hidden.value) loadItems(search.value, search, hidden, results);
+      if (!hidden.value && !state.itemSearchTimers.has(search) && !state.itemControllers.has(search)) loadItems(search.value, search, hidden, results);
     });
     search.addEventListener('keydown', function (event) { handleItemKeys(event, search, hidden, results); });
     search.addEventListener('blur', function () {
-      window.setTimeout(function () {
-        if (!label.contains(document.activeElement)) closeItemResults(search, results);
-      }, 100);
+      window.setTimeout(function () { if (!results._persistent && !label.contains(document.activeElement)) closeItemResults(search, results); }, 100);
     });
     return label;
   }
 
   async function loadItems(query, search, hidden, results) {
-    var previousController = state.itemControllers.get(search);
-    if (previousController) previousController.abort();
-    var controller = new AbortController();
-    state.itemControllers.set(search, controller);
-    state.activeItemControllers.add(controller);
+    var previousController = state.itemControllers.get(search); if (previousController) previousController.abort();
+    var controller = new AbortController(); var generation = ++results._generation;
+    state.itemControllers.set(search, controller); state.activeItemControllers.add(controller);
+    results.dataset.pending = 'true'; results.setAttribute('aria-busy', 'true');
+    results._status.textContent = 'Searching…'; results.hidden = false;
+    search.setAttribute('aria-expanded', 'true');
     try {
-      var params = new URLSearchParams();
+      var params = new URLSearchParams({ limit: '2500' });
       if (query.trim()) params.set('q', query.trim().slice(0, 120));
+      var cart = grantCart && results.closest('.grant-cart') ? grantCart : null;
+      if (cart && cart.serverId) params.set('server', cart.serverId);
       var response = await api('/admin/api/items?' + params.toString(), { signal: controller.signal });
-      if (state.itemControllers.get(search) !== controller || !search.isConnected) return;
-      renderItemResults(Array.isArray(response.items) ? response.items : [], search, hidden, results);
+      if (state.itemControllers.get(search) !== controller || generation !== results._generation || !search.isConnected) return;
+      var items = Array.isArray(response.items) ? response.items : [];
+      if (cart && cart.itemScope !== 'all') {
+        var orderedKeys = (cart.preferences[cart.itemScope] || []).map(function (item) { return item.key; });
+        var keys = new Set(orderedKeys);
+        items = items.filter(function (item) { return keys.has(item.key); });
+        if (cart.itemScope === 'recent') items.sort(function (left, right) { return orderedKeys.indexOf(left.key) - orderedKeys.indexOf(right.key); });
+      }
+      renderItemResults(items, search, hidden, results);
     } catch (error) {
-      if (error && error.name === 'AbortError') return;
-      // Never fail silently: the hidden value must only be populated from a
-      // trusted result, so make a lookup failure actionable for the operator.
-      var retry = element('button', 'combobox-retry', 'Catalog lookup failed — retry');
-      retry.type = 'button';
+      if (error && error.name === 'AbortError' || generation !== results._generation || !search.isConnected) return;
+      results._items = []; results._nodes.clear(); results._status.textContent = 'Catalog lookup failed.';
+      var retry = element('button', 'combobox-retry', 'Retry catalog search'); retry.type = 'button';
       retry.addEventListener('click', function () { loadItems(search.value, search, hidden, results); });
       results.replaceChildren(retry);
-      results.hidden = false;
-      results.closest('label')?.classList.add('combobox-open');
-      search.setAttribute('aria-expanded', 'true');
     } finally {
+      if (generation === results._generation) { results.dataset.pending = 'false'; results.setAttribute('aria-busy', 'false'); }
       if (state.itemControllers.get(search) === controller) state.itemControllers.delete(search);
       state.activeItemControllers.delete(controller);
     }
   }
 
   function renderItemResults(items, search, hidden, results) {
-    var nodes = items.slice(0, 25).filter(function (item) { return item && item.key && item.name; }).map(function (item) {
-      var option = element('button', 'combobox-option');
-      option.type = 'button';
-      option.setAttribute('role', 'option');
-      option.dataset.itemKey = safeString(item.key, 100);
-      option.append(
-        element('strong', '', item.name),
-        element('span', '', [item.category, item.gfi ? 'GFI ' + item.gfi : '', item.itemNumber === undefined || item.itemNumber === null ? '' : '#' + item.itemNumber].filter(Boolean).join(' - '))
-      );
-      if (item.blueprintPath) {
-        var blueprint = element('code', 'item-blueprint', safeString(item.blueprintPath, 400));
-        blueprint.title = safeString(item.blueprintPath, 400);
-        option.append(blueprint);
-      }
-      option.addEventListener('mousedown', function (event) { event.preventDefault(); });
-      option.addEventListener('click', function () { chooseItem(item, search, hidden, results); });
-      return option;
-    });
-    if (!nodes.length) {
-      var empty = element('div', 'empty-copy', 'No matching catalog items.');
-      results.replaceChildren(empty);
-    } else {
-      results.replaceChildren.apply(results, nodes);
-    }
-    results.hidden = false;
+    var next = items.filter(function (item) { return item && item.key && item.name; }).slice(0, 2500);
+    var signature = next.map(function (item) { return item.key; }).join('|');
+    if (signature !== results._signature) { results.scrollTop = 0; results._active = -1; }
+    results._signature = signature; results._items = next;
+    results._status.textContent = plural(next.length, 'matching item') + (next.length ? ' · Use arrows to choose.' : '');
+    results.hidden = false; search.setAttribute('aria-expanded', 'true');
     results.closest('label')?.classList.add('combobox-open');
-    results.classList.remove('upward');
-    search.setAttribute('aria-expanded', 'true');
+    drawItemWindow(search, hidden, results);
+  }
+
+  function drawItemWindow(search, hidden, results) {
+    var items = results._items || []; var height = 76;
+    if (!items.length) {
+      if (!$('.empty-copy', results)) results.replaceChildren(element('div', 'empty-copy', 'No matching catalog items.'));
+      search.removeAttribute('aria-activedescendant'); return;
+    }
+    var viewport = $('.item-virtual-space', results);
+    if (!viewport) { viewport = element('div', 'item-virtual-space'); results.replaceChildren(viewport); }
+    viewport.style.height = String(items.length * height) + 'px';
+    var start = Math.max(0, Math.floor(results.scrollTop / height) - 2);
+    var end = Math.min(items.length, start + Math.ceil((results.clientHeight || 244) / height) + 5);
+    var visible = new Set();
+    for (var index = start; index < end; index += 1) {
+      var item = items[index]; visible.add(item.key);
+      var option = results._nodes.get(item.key);
+      if (!option) {
+        option = element('button', 'combobox-option'); option.type = 'button'; option.setAttribute('role', 'option');
+        option.dataset.itemKey = item.key;
+        var edition = item.compatibility ? item.compatibility.games.join('/') || 'Edition unverified' : '';
+        option.append(element('strong', '', item.name), element('span', '', [item.category, item.gfi ? 'GFI ' + item.gfi : '', edition].filter(Boolean).join(' · ')), element('code', 'item-blueprint', item.blueprintPath || ''));
+        option.addEventListener('mousedown', function (event) { event.preventDefault(); });
+        option.addEventListener('click', function () { if (results.dataset.pending !== 'true') chooseItem(this._item, search, hidden, results); });
+        results._nodes.set(item.key, option);
+      }
+      option._item = item; option.id = results.id + '-option-' + index;
+      option.style.top = String(index * height) + 'px';
+      option.setAttribute('aria-posinset', String(index + 1)); option.setAttribute('aria-setsize', String(items.length));
+      option.setAttribute('aria-selected', index === results._active ? 'true' : 'false');
+      option.classList.toggle('active', index === results._active);
+      if (option.parentNode !== viewport) viewport.append(option);
+    }
+    results._nodes.forEach(function (node, key) { if (!visible.has(key)) { node.remove(); results._nodes.delete(key); } });
+    var active = results._active >= start && results._active < end ? results.id + '-option-' + results._active : '';
+    if (active) search.setAttribute('aria-activedescendant', active); else search.removeAttribute('aria-activedescendant');
   }
 
   function chooseItem(item, search, hidden, results) {
-    search.value = safeString(item.name, 160);
-    hidden.value = safeString(item.key, 100);
+    if (!item) return;
+    search.value = safeString(item.name, 160); hidden.value = safeString(item.key, 100); hidden._item = item;
     search.setCustomValidity('');
-    closeItemResults(search, results);
-    search.focus();
+    if (!results._persistent) closeItemResults(search, results);
+    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    search.focus({ preventScroll: true });
   }
 
   function closeItemResults(search, results) {
-    results.hidden = true;
-    results.closest('label')?.classList.remove('combobox-open');
-    search.setAttribute('aria-expanded', 'false');
-    $all('.combobox-option', results).forEach(function (option) { option.classList.remove('active'); });
+    results._generation += 1;
+    var controller = state.itemControllers.get(search); if (controller) controller.abort();
+    var timer = state.itemSearchTimers.get(search); if (timer) window.clearTimeout(timer); state.itemSearchTimers.delete(search);
+    results.hidden = true; results.closest('label')?.classList.remove('combobox-open');
+    search.setAttribute('aria-expanded', 'false'); search.removeAttribute('aria-activedescendant');
   }
 
   function handleItemKeys(event, search, hidden, results) {
+    if (event.key === 'Escape' && !results.hidden) {
+      event.preventDefault(); event.stopPropagation(); closeItemResults(search, results); return;
+    }
     if (results.hidden && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
-      loadItems(search.value, search, hidden, results);
-      return;
+      event.preventDefault(); loadItems(search.value, search, hidden, results); return;
     }
-    var options = $all('.combobox-option', results);
-    if (!options.length) return;
-    var current = options.findIndex(function (option) { return option.classList.contains('active'); });
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (results.dataset.pending === 'true' || !results._items.length) return;
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
-      var direction = event.key === 'ArrowDown' ? 1 : -1;
-      var next = current < 0 ? (direction > 0 ? 0 : options.length - 1) : (current + direction + options.length) % options.length;
-      options.forEach(function (option, index) {
-        option.classList.toggle('active', index === next);
-        option.setAttribute('aria-selected', index === next ? 'true' : 'false');
+      var index = results._active;
+      if (event.key === 'Home') index = 0;
+      else if (event.key === 'End') index = results._items.length - 1;
+      else index = Math.max(0, Math.min(results._items.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+      results._active = index;
+      if (index * 76 < results.scrollTop) results.scrollTop = index * 76;
+      else if ((index + 1) * 76 > results.scrollTop + results.clientHeight) results.scrollTop = (index + 1) * 76 - results.clientHeight;
+      drawItemWindow(search, hidden, results);
+    } else if (event.key === 'Enter' && results._active >= 0) {
+      event.preventDefault(); chooseItem(results._items[results._active], search, hidden, results);
+    }
+  }
+
+  function grantPlayer() {
+    var select = $('#action-dialog [data-option="player"]');
+    return select && state.actionPlayers.find(function (player) { return player.selection === select.value; });
+  }
+
+  function grantContext() {
+    var player = grantPlayer();
+    var server = player && state.servers.find(function (entry) { return (entry.serverId || entry.id) === player.serverId; });
+    return server && server.gameContext || { game: 'unknown', mapName: null, reason: 'Choose a player on a map with a recognized ARK map identifier.' };
+  }
+
+  function updateGrantContext() {
+    if (!grantCart || !$('#grant-context')) return;
+    var player = grantPlayer(); var context = grantContext();
+    var changed = grantCart.serverId !== (player && player.serverId || '');
+    grantCart.serverId = player && player.serverId || '';
+    $('#grant-context').textContent = context.game === 'unknown'
+      ? 'Game/map not identified. ' + (context.reason || 'Use a verified map identifier in Settings.')
+      : context.game + ' · ' + (context.mapName || context.mapId) + ' · Identified from configured map metadata';
+    if (changed) {
+      var item = $('#grant-item-picker input[type="hidden"]');
+      if (item) { item.value = ''; item._item = null; updateGrantFavorite(); }
+      refreshGrantItemSearch(); renderGrantPackages();
+      if (grantCart.items.length || grantCart.packages.length) $('#grant-cart-message').textContent = 'Player changed. Review cart compatibility for this map before sending.';
+    }
+  }
+
+  function refreshGrantItemSearch() {
+    var picker = $('#grant-item-picker'); if (!picker) return;
+    loadItems($('input[type="search"]', picker).value, $('input[type="search"]', picker), $('input[type="hidden"]', picker), $('.combobox-results', picker));
+  }
+
+  async function loadGrantPreferences() {
+    var cart = grantCart;
+    try {
+      var result = await api('/admin/api/item-preferences');
+      if (grantCart !== cart) return;
+      cart.preferences = { favorites: Array.isArray(result.favorites) ? result.favorites : [], recent: Array.isArray(result.recent) ? result.recent : [] };
+      updateGrantFavorite(); if (cart.itemScope !== 'all') refreshGrantItemSearch();
+    } catch (error) {
+      if (grantCart === cart) $('#grant-cart-message').textContent = 'Item shortcuts could not load. Catalog search is still available.';
+    }
+  }
+
+  function updateGrantFavorite() {
+    var selected = $('#grant-item-picker input[type="hidden"]'); var button = $('#grant-item-favorite');
+    if (!selected || !button || !grantCart) return;
+    var favorite = grantCart.preferences.favorites.some(function (item) { return item.key === selected.value; });
+    button.disabled = !selected.value; button.textContent = favorite ? 'Remove favorite' : 'Favorite item';
+    button.setAttribute('aria-pressed', favorite ? 'true' : 'false');
+  }
+
+  function cartLineCount() {
+    return grantCart ? grantCart.items.length + grantCart.packages.reduce(function (total, entry) { return total + entry.itemCount; }, 0) : 0;
+  }
+
+  function renderGrantCart() {
+    if (!grantCart) return;
+    var list = $('#grant-cart-lines'); var existing = new Map($all('[data-cart-line]', list).map(function (node) { return [node.dataset.cartLine, node]; }));
+    var entries = grantCart.items.map(function (item) { return { id: item.lineId, label: item.name + ' × ' + item.quantity + (item.blueprint ? ' blueprint' : '') + ' · quality ' + item.quality, item: item }; })
+      .concat(grantCart.packages.map(function (entry) { return { id: entry.packageId, label: entry.name + ' · ' + plural(entry.itemCount, 'item type'), package: entry }; }));
+    entries.forEach(function (entry, index) {
+      var node = existing.get(entry.id);
+      if (!node) {
+        node = element('div', 'grant-cart-line'); node.dataset.cartLine = entry.id;
+        var label = element('span', 'grant-cart-line-label');
+        var remove = element('button', 'quiet-button', 'Remove'); remove.type = 'button';
+        remove.setAttribute('aria-label', 'Remove ' + (entry.item ? entry.item.name : entry.package.name));
+        remove.addEventListener('click', function () {
+          grantCart.items = grantCart.items.filter(function (item) { return item.lineId !== entry.id; });
+          grantCart.packages = grantCart.packages.filter(function (item) { return item.packageId !== entry.id; });
+          renderGrantCart(); renderGrantPackages();
+        });
+        node.append(label, remove);
+      }
+      $('.grant-cart-line-label', node).textContent = entry.label;
+      if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null);
+      existing.delete(entry.id);
+    });
+    existing.forEach(function (node) { node.remove(); });
+    $('#grant-cart-summary').textContent = entries.length ? plural(grantCart.items.length, 'item selection') + ' + ' + plural(grantCart.packages.length, 'package') + ' · ' + cartLineCount() + '/50 item types' : 'Cart is empty. Add items or packages below.';
+    $('#grant-cart-clear').disabled = !entries.length;
+    if (!$('#preview-button').disabled) $('#preview-button').textContent = entries.length ? 'Review cart (' + entries.length + ')' : 'Review cart';
+  }
+
+  function addGrantItem() {
+    var selected = $('#grant-item-picker input[type="hidden"]');
+    if (!selected.value || !selected._item) { $('#grant-cart-message').textContent = 'Choose an item from the catalog first.'; return; }
+    var quantity = $('#grant-item-quantity'); var quality = $('#grant-item-quality');
+    if (!quantity.reportValidity() || !quality.reportValidity()) return;
+    var blueprint = $('#grant-item-blueprint').checked;
+    var existing = grantCart.items.find(function (item) { return item.itemKey === selected.value && item.quality === Number(quality.value) && item.blueprint === blueprint; });
+    if (existing && existing.quantity + Number(quantity.value) > 10000) { $('#grant-cart-message').textContent = 'A cart item is limited to 10,000 total quantity.'; return; }
+    if (!existing && cartLineCount() >= 50) { $('#grant-cart-message').textContent = 'A cart is limited to 50 item types including packages.'; return; }
+    if (existing) existing.quantity += Number(quantity.value);
+    else grantCart.items.push({ lineId: 'item-' + (++grantCart.sequence), itemKey: selected.value, name: selected._item.name, quantity: Number(quantity.value), quality: Number(quality.value), blueprint: blueprint });
+    $('#grant-cart-message').textContent = 'Added ' + selected._item.name + '. Review the cart when ready.';
+    renderGrantCart();
+  }
+
+  function packageMatchesContext(itemPackage, context, map) {
+    var compatibility = itemPackage.compatibility;
+    if (context.game !== 'unknown' && compatibility && compatibility.games && !compatibility.games.includes(context.game)) return false;
+    var names = compatibility && compatibility.mapNames || [];
+    if (map && names.length && !names.some(function (name) { return name.toLowerCase().replace(/^the /, '') === map.toLowerCase().replace(/^the /, ''); })) return false;
+    return true;
+  }
+
+  function renderGrantPackages() {
+    var list = $('#grant-package-results'); if (!grantCart || !list) return;
+    var query = $('#grant-package-search').value.trim().toLowerCase();
+    var category = $('#grant-package-category').value; var tier = $('#grant-package-tier').value;
+    var context = grantContext(); var mapChoice = $('#grant-package-map').value;
+    var map = mapChoice === 'auto' ? context.mapName : mapChoice;
+    var packages = itemPackages().filter(function (entry) {
+      var grouping = entry.grouping || {};
+      return entry.enabled && (!query || (entry.name + ' ' + entry.description).toLowerCase().includes(query))
+        && (category === 'all' || grouping.category === category)
+        && (tier === 'all' || grouping.tier === tier) && packageMatchesContext(entry, context, map);
+    });
+    var existing = new Map($all('[data-grant-package]', list).map(function (node) { return [node.dataset.grantPackage, node]; }));
+    packages.forEach(function (entry, index) {
+      var node = existing.get(entry.id);
+      if (!node) {
+        node = element('div', 'grant-package-row'); node.dataset.grantPackage = entry.id;
+        var copy = element('div', ''); copy.append(element('strong', '', entry.name), element('small', '', ''));
+        var add = element('button', 'secondary-button', 'Add'); add.type = 'button'; add.setAttribute('aria-label', 'Add ' + entry.name + ' to cart');
+        add.addEventListener('click', function () {
+          var entry = this.parentNode._package;
+          if (grantCart.packages.some(function (value) { return value.packageId === entry.id; })) return;
+          if (cartLineCount() + entry.items.length > 50) { $('#grant-cart-message').textContent = 'This package would exceed the 50 item type cart limit.'; return; }
+          grantCart.packages.push({ packageId: entry.id, revision: entry.revision, name: entry.name, itemCount: entry.items.length });
+          $('#grant-cart-message').textContent = 'Added package ' + entry.name + '.'; renderGrantCart(); renderGrantPackages();
+        });
+        node.append(copy, add);
+      }
+      node._package = entry;
+      $('strong', node).textContent = entry.name;
+      var recipe = entry.grouping && entry.grouping.category === 'boss' ? entry.compatibility && entry.compatibility.recipeVerified ? 'Verified recipe' : 'Custom or unverified recipe' : '';
+      $('small', node).textContent = [(entry.compatibility && entry.compatibility.games || []).join(' / '), recipe, plural(entry.items.length, 'item type')].filter(Boolean).join(' · ');
+      $('button', node).setAttribute('aria-label', 'Add ' + entry.name + ' to cart');
+      var chosen = grantCart.packages.some(function (value) { return value.packageId === entry.id; });
+      $('button', node).disabled = chosen; $('button', node).textContent = chosen ? 'Added' : 'Add';
+      if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null);
+      existing.delete(entry.id);
+    });
+    existing.forEach(function (node) { node.remove(); });
+    $('#grant-package-status').textContent = plural(packages.length, 'matching package') + (packages.length ? '' : '. Adjust search or filters.');
+  }
+
+  function buildGrantCart(startWithPackages) {
+    grantCart = { items: [], packages: [], sequence: 0, serverId: '', itemScope: 'all', preferences: { favorites: [], recent: [] } };
+    var root = element('section', 'grant-cart full'); root.id = 'grant-cart';
+    var context = element('p', 'grant-context'); context.id = 'grant-context'; context.setAttribute('role', 'status');
+    var summary = element('strong', ''); summary.id = 'grant-cart-summary'; summary.setAttribute('role', 'status');
+    var clear = element('button', 'quiet-button', 'Clear cart'); clear.id = 'grant-cart-clear'; clear.type = 'button';
+    clear.addEventListener('click', function () { grantCart.items = []; grantCart.packages = []; renderGrantCart(); renderGrantPackages(); });
+    var heading = element('div', 'grant-cart-heading'); heading.append(summary, clear);
+    var lines = element('div', 'grant-cart-lines'); lines.id = 'grant-cart-lines'; lines.setAttribute('aria-label', 'Grant cart');
+    var message = element('p', 'grant-cart-message', 'Add selections to the cart, then review one operation.'); message.id = 'grant-cart-message'; message.setAttribute('role', 'status');
+    var tabs = element('div', 'grant-cart-tabs'); tabs.setAttribute('role', 'group'); tabs.setAttribute('aria-label', 'Choose cart content');
+    var itemsButton = element('button', 'secondary-button', 'Items'); itemsButton.id = 'grant-items-tab'; itemsButton.type = 'button';
+    var packagesButton = element('button', 'secondary-button', 'Packages & bosses'); packagesButton.id = 'grant-packages-tab'; packagesButton.type = 'button';
+    tabs.append(itemsButton, packagesButton);
+    var itemsPanel = element('div', 'grant-items-panel'); itemsPanel.id = 'grant-items-panel';
+    var scopeLabel = element('label', ''); scopeLabel.append(element('span', '', 'Item shortcuts'));
+    var scope = document.createElement('select'); scope.id = 'grant-item-scope'; scope.append(new Option('All items', 'all'), new Option('Favorites', 'favorites'), new Option('Recent grants', 'recent')); scopeLabel.append(scope);
+    scope.addEventListener('change', function () { grantCart.itemScope = scope.value; refreshGrantItemSearch(); });
+    var picker = itemFieldNode({ name: 'cart-item', label: 'Catalog item', persistent: true }, makeLabel({ label: 'Catalog item', full: true })); picker.id = 'grant-item-picker';
+    var numbers = element('div', 'grant-item-options');
+    [['Quantity', 'grant-item-quantity', 1, 1, 10000, '1'], ['Quality', 'grant-item-quality', 0, 0, 100, 'any']].forEach(function (entry) {
+      var label = element('label', ''); var input = document.createElement('input'); input.type = 'number'; input.id = entry[1]; input.value = entry[2]; input.min = entry[3]; input.max = entry[4]; input.step = entry[5]; input.required = true;
+      label.append(element('span', '', entry[0]), input); numbers.append(label);
+    });
+    var blueprintLabel = element('label', 'checkbox-field'); var blueprint = document.createElement('input'); blueprint.type = 'checkbox'; blueprint.id = 'grant-item-blueprint'; blueprintLabel.append(blueprint, element('span', '', 'Give as blueprint'));
+    var actions = element('div', 'grant-item-actions');
+    var favorite = element('button', 'quiet-button', 'Favorite item'); favorite.type = 'button'; favorite.id = 'grant-item-favorite'; favorite.disabled = true;
+    favorite.addEventListener('click', async function () {
+      var cart = grantCart; var key = $('input[type="hidden"]', picker).value; if (!key) return;
+      var desired = !cart.preferences.favorites.some(function (item) { return item.key === key; }); favorite.disabled = true;
+      try {
+        var result = await api('/admin/api/item-preferences', { method: 'PUT', csrf: true, body: { itemKey: key, favorite: desired } });
+        if (grantCart !== cart) return;
+        cart.preferences = { favorites: result.favorites || [], recent: result.recent || [] }; updateGrantFavorite();
+        if (cart.itemScope === 'favorites') refreshGrantItemSearch();
+      } catch (error) { if (grantCart === cart) { message.textContent = errorMessage(error); updateGrantFavorite(); } }
+    });
+    $('input[type="hidden"]', picker).addEventListener('change', updateGrantFavorite);
+    var add = element('button', 'primary-button', 'Add item to cart'); add.type = 'button'; add.id = 'grant-item-add'; add.addEventListener('click', addGrantItem); actions.append(favorite, add);
+    itemsPanel.append(scopeLabel, picker, numbers, blueprintLabel, actions);
+    var packagesPanel = element('div', 'grant-packages-panel'); packagesPanel.id = 'grant-packages-panel';
+    var searchLabel = element('label', ''); searchLabel.append(element('span', '', 'Search packages and bosses'));
+    var search = document.createElement('input'); search.type = 'search'; search.id = 'grant-package-search'; search.placeholder = 'Name, boss, map, or description'; searchLabel.append(search);
+    var searchTimer; search.addEventListener('input', function () { window.clearTimeout(searchTimer); searchTimer = window.setTimeout(renderGrantPackages, 180); });
+    var filters = element('div', 'grant-package-filters');
+    var maps = Array.from(new Set(itemPackages().flatMap(function (entry) { return entry.compatibility && entry.compatibility.mapNames || []; }))).sort();
+    [['Type', 'grant-package-category', [['all','All packages'],['boss','Boss tributes'],['starter','Starter'],['freebie','Freebie'],['custom','Custom']]],
+      ['Map', 'grant-package-map', [['auto','Player map'],['','All maps']].concat(maps.map(function (name) { return [name, name]; }))],
+      ['Difficulty', 'grant-package-tier', [['all','All difficulties'],['gamma','Gamma'],['beta','Beta'],['alpha','Alpha'],['standard','Standard']]]].forEach(function (entry) {
+        var label = element('label', ''); var select = document.createElement('select'); select.id = entry[1];
+        entry[2].forEach(function (option) { select.append(new Option(option[1], option[0])); });
+        select.addEventListener('change', renderGrantPackages); label.append(element('span', '', entry[0]), select); filters.append(label);
       });
-      options[next].scrollIntoView({ block: 'nearest' });
-    } else if (event.key === 'Enter' && current >= 0) {
-      event.preventDefault();
-      options[current].click();
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      closeItemResults(search, results);
+    var status = element('p', 'item-search-status'); status.id = 'grant-package-status'; status.setAttribute('role', 'status');
+    var results = element('div', 'grant-package-results'); results.id = 'grant-package-results';
+    packagesPanel.append(searchLabel, filters, status, results);
+    function showPackages(show) {
+      itemsPanel.hidden = show; packagesPanel.hidden = !show;
+      itemsButton.setAttribute('aria-pressed', show ? 'false' : 'true'); packagesButton.setAttribute('aria-pressed', show ? 'true' : 'false');
     }
+    itemsButton.addEventListener('click', function () { showPackages(false); }); packagesButton.addEventListener('click', function () { showPackages(true); renderGrantPackages(); });
+    showPackages(startWithPackages);
+    root.append(context, heading, lines, message, tabs, itemsPanel, packagesPanel); return root;
   }
 
   function openAction(name, defaults, trigger) {
@@ -4262,7 +5146,11 @@
       return;
     }
     var definitions = actionDefinitions();
-    var definition = definitions[name];
+    var useCart = ['give-item', 'give-package', 'give-cart'].includes(name) && actionAvailable('give-cart');
+    var packagesFirst = name === 'give-package';
+    var definition = useCart ? { title: 'Give items & packages', description: 'Build a cart for one connected player, then review every item before sending.', fields: [
+      { name: 'player', label: 'Connected player', type: 'player', required: true, full: true }
+    ] } : definitions[name];
     if (!definition) {
       toast('This operation does not have a guided dashboard workflow.', 'warn');
       return;
@@ -4272,6 +5160,8 @@
       ? state.players.find(function (player) { return player.selection === suppliedDefaults.player; })
         || (state.selectedPlayer && state.selectedPlayer.selection === suppliedDefaults.player ? state.selectedPlayer : null)
       : null;
+    if (useCart) name = 'give-cart';
+    grantCart = null;
     state.currentAction = name;
     state.actionPlayers = [];
     state.actionDefaults = Object.assign({}, suppliedDefaults, { player: '' });
@@ -4282,7 +5172,10 @@
     $('#preview-button').textContent = name === 'player' ? 'Open staff record' : 'Review operation';
     showFormError($('#action-dialog').querySelector('.form-error'), '');
     var fields = definition.fields.map(fieldNode);
+    if (useCart) fields.push(buildGrantCart(packagesFirst));
     $('#action-dialog').querySelector('.form-grid').replaceChildren.apply($('#action-dialog').querySelector('.form-grid'), fields);
+    $('#action-dialog').classList.toggle('grant-dialog', useCart);
+    $('#action-form').noValidate = useCart;
     if ($('#player-dialog').open) {
       clearPlayerIdentifierDisclosure();
       $('#player-dialog').close();
@@ -4291,6 +5184,10 @@
     var first = $('#action-dialog').querySelector('input:not([type="hidden"]), select, textarea');
     if (first) first.focus();
     if (definition.fields.some(function (field) { return field.type === 'player'; })) loadActionPlayers(name, playerContext);
+    if (useCart) {
+      $('[data-option="player"]', $('#action-dialog')).addEventListener('change', updateGrantContext);
+      renderGrantCart(); renderGrantPackages(); updateGrantContext(); loadGrantPreferences(); refreshGrantItemSearch();
+    }
     if (definition.fields.some(function (field) { return field.type === 'item'; })) {
       var search = $('#action-dialog input[role="combobox"]');
       if (search) loadItems('', search, $('[data-option="item"]', $('#action-dialog')), $('.combobox-results', $('#action-dialog')));
@@ -4318,8 +5215,23 @@
     event.preventDefault();
     var form = event.currentTarget;
     validateCodePointFields(form);
-    if (!form.reportValidity()) return;
+    if (state.currentAction === 'give-cart' ? !$('[data-option="player"]', form).reportValidity() : !form.reportValidity()) return;
     var options = collectActionOptions(form);
+    if (state.currentAction === 'give-cart' && grantCart) {
+      if (!cartLineCount()) { $('#grant-cart-message').textContent = 'Add at least one item or package to the cart.'; return; }
+      var cart = grantCart; var selectedPlayer = grantPlayer();
+      if (!selectedPlayer) { $('#grant-cart-message').textContent = 'Choose a connected player again.'; return; }
+      setBusy($('#preview-button'), true, 'Checking player…');
+      try { await loadActionPlayers('give-cart', selectedPlayer, { retainRoster: true }); }
+      finally { setBusy($('#preview-button'), false); }
+      if (grantCart !== cart || state.currentAction !== 'give-cart') return;
+      var refreshedPlayer = grantPlayer();
+      if (!refreshedPlayer || !sameVisiblePlayer(refreshedPlayer, selectedPlayer)) return;
+      options = { player: options.player,
+        items: grantCart.items.map(function (item) { return { itemKey: item.itemKey, quantity: item.quantity, quality: item.quality, blueprint: item.blueprint }; }),
+        packages: grantCart.packages.map(function (entry) { return { packageId: entry.packageId, revision: entry.revision }; }) };
+      options.player = refreshedPlayer.selection;
+    }
     if (state.currentAction === 'player') {
       var player = state.actionPlayers.find(function (candidate) { return candidate.selection === options.player; });
       if (!player) {
@@ -4391,12 +5303,21 @@
         options: options,
         confirmationToken: result.confirmationToken,
         expiresAt: result.expiresAt,
+        sourceDialog: sourceDialog || null,
+        sourceScrollTop: sourceDialog && $('.form-grid', sourceDialog) ? $('.form-grid', sourceDialog).scrollTop : 0,
         source: settings && settings.source || ''
       };
       var risk = riskInfo(result.risk);
       $('#confirm-dialog').querySelector('.eyebrow').textContent = risk.label;
       $('#confirm-dialog').querySelector('.eyebrow').className = 'eyebrow risk-badge ' + risk.value;
       $('#confirm-dialog').querySelector('.operation-summary').textContent = summaryText(result.summary);
+      $('#confirm-dialog-title').textContent = 'Review operation';
+      $('#confirm-dialog .dialog-footer .close-dialog').textContent = 'Go back';
+      if (Array.isArray(result.grantLines)) {
+        var details = element('ol', 'grant-review-lines');
+        result.grantLines.forEach(function (line) { details.append(element('li', '', line.quantity + ' × ' + line.name + ' · quality ' + line.quality + (line.blueprint ? ' · blueprint' : '') + (line.sourcePackageName ? ' · ' + line.sourcePackageName : ''))); });
+        $('#confirm-dialog').querySelector('.operation-summary').append(details);
+      }
       configureChallenge(result.challenge);
       showFormError($('#confirm-dialog').querySelector('.form-error'), '');
       var execute = $('#confirm-dialog .danger-button');
@@ -4430,6 +5351,18 @@
     state.selectedPlayer = null;
     state.lastPlayerRefreshAt = 0;
     renderPlayers();
+  }
+
+  function showGrantResults(lines, message) {
+    var summary = $('#confirm-dialog .operation-summary'); summary.textContent = message;
+    var list = element('ol', 'grant-review-lines');
+    lines.forEach(function (line) {
+      var status = line.outcome === 'sent' ? 'Sent' : line.outcome === 'uncertain' ? 'Uncertain — verify in game' : 'Not sent';
+      list.append(element('li', '', status + ': ' + line.quantity + ' × ' + line.name + (line.blueprint ? ' blueprint' : '')));
+    });
+    summary.append(list); $('#confirm-dialog-title').textContent = 'Grant results';
+    $('#confirm-dialog .dialog-footer .close-dialog').textContent = 'Close';
+    $('#execute-button').disabled = true;
   }
 
   async function executePendingAction(event) {
@@ -4479,20 +5412,25 @@
       state.currentAction = null;
       state.actionDefaults = {};
       input.value = '';
-      $('#confirm-dialog').close();
+      if (pending.action === 'give-cart' && Array.isArray(result.grantResults)) {
+        showGrantResults(result.grantResults, message); grantCart = null;
+      } else $('#confirm-dialog').close();
       renderActivity();
       refreshBootstrap({ force: true, quiet: true });
       loadActivity({ quiet: true });
       if (state.currentTab === 'players') loadPlayers({ quiet: true, purpose: 'player' });
     } catch (error) {
       var networkAmbiguous = mutationOutcomeUnknown(error);
-      var serverAmbiguous = error && (error.status >= 500 || safeString(error.outcome).toLowerCase() === 'uncertain');
+      var serverAmbiguous = error && (safeString(error.outcome).toLowerCase() === 'uncertain' || (error.status >= 500 && safeString(error.outcome).toLowerCase() !== 'failed'));
       var message = networkAmbiguous
         ? 'Connection was lost. The operation may have been applied. Verify server state before considering another attempt.'
         : serverAmbiguous
           ? errorMessage(error) + ' The outcome may be uncertain; verify server state before considering another attempt.'
           : errorMessage(error);
       showFormError($('#confirm-dialog').querySelector('.form-error'), message);
+      if (pending.action === 'give-cart' && Array.isArray(error.grantResults)) {
+        showGrantResults(error.grantResults, 'The cart stopped. Review each outcome before taking further action.'); grantCart = null;
+      }
       invalidatePlayerSelections();
       state.pendingAction = null;
       state.currentAction = null;
@@ -4526,8 +5464,19 @@
       clearPlayerIdentifierDisclosure();
       state.selectedPlayer = null;
     }
-    if (dialog === $('#confirm-dialog')) state.pendingAction = null;
+    if (dialog === $('#confirm-dialog')) {
+      var source = state.pendingAction && state.pendingAction.sourceDialog;
+      var sourceScrollTop = state.pendingAction && state.pendingAction.sourceScrollTop;
+      state.pendingAction = null;
+      if (source && state.currentAction) {
+        source.showModal();
+        if ($('.form-grid', source)) $('.form-grid', source).scrollTop = sourceScrollTop || 0;
+        $('#preview-button').focus({ preventScroll: true });
+        return;
+      }
+    }
     if (dialog === $('#action-dialog')) {
+      grantCart = null;
       state.currentAction = null;
       state.actionDefaults = {};
     }
@@ -4572,6 +5521,10 @@
   }
 
   function bindEvents() {
+    if (window.ResizeObserver) {
+      new window.ResizeObserver(updateSettingsOverlaySpacing).observe($('#settings-change-bar'));
+    }
+    bindEvolutionEvents();
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (name) {
       document.addEventListener(name, function (event) {
         if (event.isTrusted && state.session) state.lastOperatorActivityAt = Date.now();
@@ -4625,7 +5578,24 @@
       if (state.lastDialogTrigger && state.lastDialogTrigger.isConnected) state.lastDialogTrigger.focus();
       else if ($('#create-operator-button') && !$('#create-operator-button').hidden) $('#create-operator-button').focus();
     });
+    $('#settings-form').noValidate = true;
     $('#settings-form').addEventListener('submit', reviewSettings);
+    document.addEventListener('invalid', function (event) {
+      if (event.target.closest('#settings-form, #settings-map-wizard')) revealSettingsField(event.target);
+    }, true);
+    [['#settings-map-search', 'input', filterSettingsMaps], ['#settings-map-filter', 'change', filterSettingsMaps],
+      ['#settings-template-search', 'input', filterSettingsTemplates], ['#settings-template-category', 'change', filterSettingsTemplates],
+      ['#settings-package-search', 'input', renderSettingsPackages], ['#settings-package-filter', 'change', renderSettingsPackages]].forEach(function (entry) {
+      if ($(entry[0])) $(entry[0]).addEventListener(entry[1], entry[2]);
+    });
+    [['map', 'filter', filterSettingsMaps], ['template', 'category', filterSettingsTemplates], ['package', 'filter', renderSettingsPackages]].forEach(function (entry) {
+      var clear = $('#settings-' + entry[0] + '-clear'); if (!clear) return;
+      clear.addEventListener('click', function () {
+        var search = $('#settings-' + entry[0] + '-search'); var select = $('#settings-' + entry[0] + '-' + entry[1]);
+        if (search) search.value = ''; if (select) select.selectedIndex = 0;
+        entry[2](); if (search) search.focus();
+      });
+    });
     $('#settings-reauthentication-form').addEventListener('submit', handleSettingsReauthentication);
     $('#settings-form').addEventListener('input', function (event) {
       if (event.target.dataset && event.target.dataset.settingField === 'id') event.target.setCustomValidity('');
@@ -4652,7 +5622,7 @@
     $('#settings-add-server').addEventListener('click', addSettingsServer);
     $('#settings-add-template').addEventListener('click', function () {
       var row = addSettingsTemplate('', '');
-      if (row) $('[data-template-field="name"]', row).focus();
+      if (row) revealSettingsTemplate(row);
     });
     $('#settings-add-starter-templates').addEventListener('click', addStarterAnnouncementTemplates);
     $('#settings-add-package').addEventListener('click', function () { openPackageEditor(null); });
@@ -4690,8 +5660,7 @@
     }
     $all('[data-settings-jump]').forEach(function (button) {
       button.addEventListener('click', function () {
-        var destination = document.getElementById(button.dataset.settingsJump);
-        if (destination) destination.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        selectSettingsSection(button.dataset.settingsJump, true);
       });
     });
     $('#settings-copy-token').addEventListener('click', async function () {
@@ -4806,10 +5775,6 @@
 
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && $('#sidebar').classList.contains('open')) closeMobileNavigation();
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && state.session) {
-        event.preventDefault();
-        activateTab(rawRconEnabled() && actionAvailable('rcon') ? 'console' : 'operations');
-      }
     });
 
     document.addEventListener('visibilitychange', function () {
@@ -4825,7 +5790,7 @@
     });
     window.addEventListener('hashchange', function () { activateTab(tabFromHash(), { updateHash: false }); });
     window.addEventListener('beforeunload', function (event) {
-      if (!settingsHasChanges() && !oneTimeCredentialVisible()) return;
+      if (!settingsHasChanges() && !oneTimeCredentialVisible() && !settingsMapWizard) return;
       event.preventDefault();
       event.returnValue = '';
     });

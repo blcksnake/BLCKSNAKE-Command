@@ -6,6 +6,7 @@ import {
 import { normalizeSshSha256Fingerprint } from './core/ssh-fingerprint.js';
 import { isPathWithin } from './core/filesystem.js';
 import { isLoopbackHost } from './core/network.js';
+import { DEFAULT_TEMPLATE_CATEGORIES, TEMPLATE_CATEGORIES } from './core/workflow-presets.js';
 
 const DEFAULT_SERVER = Object.freeze({
   enabled: true,
@@ -64,6 +65,7 @@ const DEFAULTS = Object.freeze({
     blockedTerms: [], blockedRegexes: [], adminPlayerIds: [], adminPlayerNames: [],
     allowRawRcon: false, rawRconAllowlist: ['ListPlayers', 'SaveWorld', 'GetChat'],
     announcementTemplates: DEFAULT_ANNOUNCEMENT_TEMPLATES,
+    announcementTemplateCategories: DEFAULT_TEMPLATE_CATEGORIES,
     announcementTemplatesInitialized: true,
     // Recurring notices are opt-in. Use {discordInvite} to insert this URL.
     discordInviteUrl: '', recurringAnnouncements: [],
@@ -224,6 +226,14 @@ export function validateConfig(config, { allowNoServers = false, allowManagedSec
   assert(typeof config.moderation.announcementTemplatesInitialized === 'boolean', 'moderation.announcementTemplatesInitialized must be true or false');
   assert(Object.keys(config.moderation.announcementTemplates).length <= 32, 'moderation.announcementTemplates cannot contain more than 32 templates');
   const announcementMaximum = announcementMessageMaxLength(config.chat.gameMaxLength);
+  const templateCategories = config.moderation.announcementTemplateCategories;
+  assert(templateCategories && typeof templateCategories === 'object' && !Array.isArray(templateCategories),
+    'moderation.announcementTemplateCategories must be an object');
+  const categoryIds = new Set(TEMPLATE_CATEGORIES.map(({ id }) => id));
+  for (const [name, category] of Object.entries(templateCategories)) {
+    assert(Object.hasOwn(config.moderation.announcementTemplates, name), 'Template category must reference an existing template');
+    assert(categoryIds.has(category), 'Template category must be a supported category');
+  }
   const announcementNames = new Set();
   for (const [name, message] of Object.entries(config.moderation.announcementTemplates)) {
     assert(/^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$/u.test(name), `moderation.announcementTemplates.${name} has an invalid name`);
@@ -378,6 +388,11 @@ export function applyDefaults(input = {}) {
     moderation: {
       ...merge(DEFAULTS.moderation, suppliedModeration),
       announcementTemplates: { ...(initializeAnnouncementTemplates ? DEFAULT_ANNOUNCEMENT_TEMPLATES : suppliedTemplates ?? DEFAULT_ANNOUNCEMENT_TEMPLATES) },
+      announcementTemplateCategories: suppliedModeration.announcementTemplateCategories !== undefined
+        ? suppliedModeration.announcementTemplateCategories
+        : Object.fromEntries(Object.keys(initializeAnnouncementTemplates ? DEFAULT_ANNOUNCEMENT_TEMPLATES : suppliedTemplates ?? DEFAULT_ANNOUNCEMENT_TEMPLATES)
+          .filter((name) => Object.hasOwn(DEFAULT_TEMPLATE_CATEGORIES, name))
+          .map((name) => [name, DEFAULT_TEMPLATE_CATEGORIES[name]])),
       announcementTemplatesInitialized: true,
     },
     operations: merge(DEFAULTS.operations, input.operations),

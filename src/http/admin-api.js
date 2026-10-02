@@ -2,9 +2,11 @@ import crypto from 'node:crypto';
 import {
   RESTART_MAX_DELAY_MINUTES, announcementMessageMaxLength, restartReasonMaxLength,
 } from '../core/announcement-policy.js';
-import { getItem, searchItems } from '../core/item-catalog.js';
+import { getItem, getItemForGame, searchItems, searchCatalogItems } from '../core/item-catalog.js';
+import { inferServerGameContext, commandPresetForGame } from '../core/ark-compatibility.js';
+import { expandGrantCart, normalizeGrantCart } from '../core/grant-cart.js';
 import {
-  ITEM_PACKAGE_ID_PATTERN, normalizeItemPackageInput, publicItemPackage,
+  ITEM_PACKAGE_ID_PATTERN, normalizeItemPackageInput, publicItemPackage, packageCompatibleWithGame,
 } from '../core/item-packages.js';
 import {
   OperatorPasswordService, generateTemporaryPassword, normalizeOperatorRole, normalizeOperatorUsername,
@@ -48,6 +50,7 @@ const ACTIONS = Object.freeze([
   { id: 'cancel-restart', minimumLevel: PermissionLevel.MODERATOR, label: 'Cancel restart window', group: 'Maintenance', risk: 'low', server: 'optional', description: 'Cancel the selected map or cluster restart schedule.' },
   { id: 'give-item', minimumLevel: PermissionLevel.ADMIN, label: 'Give item', group: 'Player', risk: 'medium', player: true, description: 'Grant a trusted built-in catalog item to a connected player.' },
   { id: 'give-package', minimumLevel: PermissionLevel.ADMIN, accessGrant: 'give-item', label: 'Give package', group: 'Player', risk: 'medium', player: true, description: 'Grant every item in an enabled shared package to a connected player.' },
+  { id: 'give-cart', minimumLevel: PermissionLevel.ADMIN, accessGrant: 'give-item', label: 'Give item cart', group: 'Player', risk: 'medium', player: true, description: 'Review and grant multiple catalog items and shared packages to one connected player.' },
   { id: 'give-xp', minimumLevel: PermissionLevel.ADMIN, label: 'Give XP', group: 'Player', risk: 'medium', player: true, description: 'Grant experience to a connected player.' },
   { id: 'refresh-player-id', minimumLevel: PermissionLevel.ADMIN, label: 'Refresh targeting ID', group: 'Player', risk: 'low', player: true, description: 'Re-read and verify the player profile through the map SFTP source.' },
   { id: 'player', minimumLevel: PermissionLevel.MODERATOR, label: 'Player details', group: 'Player', risk: 'low', player: true, description: 'View protected moderation and targeting details.' },
@@ -66,7 +69,7 @@ const ACTIONS = Object.freeze([
 const ACTION_BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
 const PLAYER_PURPOSES = new Set(ACTIONS.filter((action) => action.player).map((action) => action.id));
 const UNCERTAIN_ON_FAILURE = new Set([
-  'announce', 'announce-template', 'save-world', 'restart', 'cancel-restart', 'give-item', 'give-package', 'give-xp',
+  'announce', 'announce-template', 'save-world', 'restart', 'cancel-restart', 'give-item', 'give-package', 'give-cart', 'give-xp',
   'warn', 'note', 'mute-player', 'unmute-player', 'kick', 'ban', 'whitelist', 'unwhitelist', 'destroy-wild-dinos', 'rcon',
 ]);
 
@@ -252,6 +255,12 @@ export function normalizeAdminAction(action, rawOptions, config = {}) {
     case 'give-package':
       rejectUnknown(options, ['player', 'package']); output.player = playerSelection(options.player);
       output.package = packageSelection(options.package); break;
+    case 'give-cart': {
+      rejectUnknown(options, ['player', 'items', 'packages']); output.player = playerSelection(options.player);
+      try { Object.assign(output, normalizeGrantCart(options)); }
+      catch (error) { fail(400, error.code ?? 'invalid_cart', error.message); }
+      break;
+    }
     case 'give-xp':
       rejectUnknown(options, ['player', 'amount', 'from-tribe', 'share-with-tribe']); output.player = playerSelection(options.player);
       output.amount = finiteNumber(options.amount, 'XP amount', 1, 1_000_000_000);
@@ -741,11 +750,17 @@ export class AdminApi {
       };
     }
     const status = this.statusProjector(this.bridge.status(), this.config.redactionSecrets);
+    for (const projected of status.servers ?? []) {
+      const source = this.bridge.servers?.find((server) => server.id === projected.serverId);
+      projected.gameContext = inferServerGameContext(source ?? {});
+      projected.commandPreset = commandPresetForGame(projected.gameContext);
+    }
     const announcementMaxLength = announcementMessageMaxLength(this.config.chat?.gameMaxLength);
     const restartReasonMaximum = restartReasonMaxLength(this.config.chat?.gameMaxLength);
     const templates = Object.entries(this.config.moderation?.announcementTemplates ?? {}).map(([name, message]) => ({
       name: safeSnippet(name, this.config.redactionSecrets, 64),
       message: safeSnippet(message, this.config.redactionSecrets, announcementMaxLength),
+      category: this.config.moderation?.announcementTemplateCategories?.[name] ?? 'general',
     }));
     const allowedActions = ACTIONS.filter((action) => sessionCanUseAction(session, action));
     const rawRcon = (session.permissionLevel >= PermissionLevel.ADMIN || hasOperatorActionGrant(session, 'rcon'))
@@ -971,12 +986,45 @@ export class AdminApi {
   }
 
   items(request, url) {
-    this.requireCurrentPassword(this.requireRead(request)); const query = String(url.searchParams.get('q') ?? '');
+    this.requireCurrentPassword(this.requireRead(request)); const query = singleQueryParameter(url, 'q');
     if (Array.from(query).length > 128) fail(400, 'invalid_query', 'Item search is too long.');
-    return { items: searchItems(query, 25).map((item) => ({
-      key: item.key, name: item.name, category: item.category, gfi: item.gfi,
-      itemNumber: item.itemNumber, blueprintPath: item.blueprintPath,
-    })) };
+    const serverId = serverSelection(singleQueryParameter(url, 'server'));
+    const server = serverId ? this.bridge.servers?.find((entry) => entry.id === serverId) : null;
+    if (serverId && !server) fail(400, 'invalid_server', 'Choose an available map server.');
+    const context = inferServerGameContext(server ?? {});
+    const rawLimit = singleQueryParameter(url, 'limit'); const rawOffset = singleQueryParameter(url, 'offset');
+    if ((rawLimit && !/^\d{1,4}$/u.test(rawLimit)) || (rawOffset && !/^\d{1,6}$/u.test(rawOffset))) {
+      fail(400, 'invalid_query', 'Item paging must use whole numbers.');
+    }
+    const limit = integer(rawLimit ? Number(rawLimit) : undefined, 'Item limit', 1, 2500, 25);
+    const offset = integer(rawOffset ? Number(rawOffset) : undefined, 'Item offset', 0, 100_000, 0);
+    // Preserve the old empty-query quick suggestions for clients that do not
+    // opt into paging, including package editing in earlier dashboards.
+    if (!rawLimit && !rawOffset && !serverId) {
+      const items = searchItems(query, 25);
+      return { items, total: items.length, offset: 0, limit: 25, context };
+    }
+    return { ...searchCatalogItems(query, { limit, offset, gameContext: context }), context };
+  }
+
+  itemPreferences(request) {
+    const session = this.requireCurrentPassword(this.requireRead(request));
+    return {
+      favorites: (this.state.listItemFavorites?.(`web_operator_${session.accountId}`) ?? []).map(getItem).filter(Boolean),
+      recent: (this.state.listRecentItems?.(`web_operator_${session.accountId}`) ?? []).map(getItem).filter(Boolean),
+    };
+  }
+
+  async updateItemPreference(request, body) {
+    const session = this.requireMutation(request);
+    this.assertActionAllowed(session, ACTION_BY_ID.get('give-item'));
+    exactObject(body, ['itemKey', 'favorite']);
+    const itemKey = itemSelection(body.itemKey);
+    if (typeof body.favorite !== 'boolean') fail(400, 'invalid_input', 'Favorite must be true or false.');
+    const method = body.favorite ? 'addItemFavorite' : 'removeItemFavorite';
+    if (typeof this.state[method] !== 'function') fail(503, 'preferences_unavailable', 'Item preferences are unavailable.');
+    await this.state[method](`web_operator_${session.accountId}`, itemKey);
+    return { ok: true, ...this.itemPreferences(request) };
   }
 
   createPackage(request, body) {
@@ -1443,12 +1491,22 @@ export class AdminApi {
     return server ? `${safeSnippet(server.name, this.config.redactionSecrets, 64)} (${server.id})` : serverId;
   }
 
-  normalizeActionRequest(body) {
+  normalizeActionRequest(body, session) {
     const normalized = normalizeAdminAction(body.action, body.options, this.config);
+    if (['give-item', 'give-package', 'give-cart'].includes(normalized.action)) {
+      const player = this.sessions.get(session?.key)?.playerSelections.get(normalized.options.player);
+      const server = this.bridge.servers?.find((candidate) => candidate.id === player?.serverId);
+      const context = inferServerGameContext(server ?? {});
+      normalized.options.grantContext = { game: context.game, mapId: context.mapId, serverId: server?.id ?? null };
+    }
     if (normalized.action === 'give-package') {
       const itemPackage = this.state.getItemPackage?.(normalized.options.package);
       if (!itemPackage?.enabled) fail(409, 'package_unavailable', 'That item package is disabled, missing, or changed. Refresh and choose it again.');
       normalized.options.packageRevision = itemPackage.revision;
+    }
+    if (normalized.action === 'give-cart') {
+      try { normalized.options.grantLines = expandGrantCart(normalized.options, this.state, normalized.options.grantContext); }
+      catch (error) { fail(error.code === 'package_changed' ? 409 : 400, error.code ?? 'invalid_cart', error.message); }
     }
     return normalized;
   }
@@ -1457,6 +1515,18 @@ export class AdminApi {
     const player = options.player ? this.sessions.get(session.key)?.playerSelections.get(options.player) : null;
     if (options.player && !player) fail(400, 'invalid_player_selection', 'Refresh the connected-player list and choose the player again.');
     if (player && player.purpose !== action) fail(409, 'player_selection_scope', 'Refresh and choose this player for the selected action.');
+    if (player && ['give-item', 'give-package', 'give-cart'].includes(action)) {
+      const server = this.bridge.servers?.find((candidate) => candidate.id === player.serverId);
+      const context = inferServerGameContext(server ?? {});
+      const packageIds = action === 'give-package' ? [options.package] : (options.packages ?? []).map((entry) => entry.packageId);
+      for (const packageId of packageIds) {
+        const itemPackage = this.state.getItemPackage?.(packageId);
+        if (!packageCompatibleWithGame(itemPackage, context)) fail(400, 'incompatible_package', `That package is not compatible with the selected ${context.game} map. Choose a matching package.`);
+      }
+      const keys = action === 'give-item' ? [options.item] : action === 'give-cart'
+        ? options.grantLines.map((entry) => entry.itemKey) : (this.state.getItemPackage?.(options.package)?.items ?? []).map((entry) => entry.itemKey);
+      if (keys.some((key) => !getItemForGame(key, context))) fail(400, 'incompatible_item', `A selected item is not compatible with the selected ${context.game} map. Choose matching catalog items.`);
+    }
     const playerLabel = player ? `${player.survivorName ? `${player.survivorName} / ` : ''}${player.name} on ${player.serverName}` : 'the connected player';
     const server = this.serverLabel(options.server); const item = options.item ? getItem(options.item) : null;
     switch (action) {
@@ -1473,6 +1543,7 @@ export class AdminApi {
         }
         return `Give package ${safeSnippet(itemPackage.name, this.config.redactionSecrets, 64)} (${itemPackage.items.length} item types) to ${playerLabel}`;
       }
+      case 'give-cart': return `Give ${options.grantLines.length} item lines from ${options.items.length} selected items and ${options.packages.length} packages to ${playerLabel}. Each line is sent once; processing stops if a grant cannot be confirmed.`;
       case 'give-xp': return `Give ${options.amount} XP to ${playerLabel}`;
       case 'refresh-player-id': return `Verify the protected targeting ID for ${playerLabel}`;
       case 'player': return `View protected staff details for ${playerLabel}`;
@@ -1498,7 +1569,7 @@ export class AdminApi {
     if (!isRecord(body)) fail(400, 'invalid_input', 'Request body must be a JSON object.');
     const requestedDefinition = ACTION_BY_ID.get(String(body.action ?? '').trim());
     if (requestedDefinition) this.assertActionAllowed(session, requestedDefinition);
-    const normalized = this.normalizeActionRequest(body);
+    const normalized = this.normalizeActionRequest(body, session);
     const summary = this.actionSummary(session, normalized.action, normalized.options);
     const token = randomToken(this.randomBytes, 24); const key = digest(token); const expiresAt = this.now() + CONFIRMATION_TTL_MS;
     const challenge = normalized.definition.challenge ? `WIPE ${normalized.options.server}` : '';
@@ -1506,7 +1577,8 @@ export class AdminApi {
       sessionKey: session.key, payloadHash: actionPayloadHash(normalized.action, normalized.options), expiresAt, challenge,
     });
     this.prune();
-    return { confirmationToken: token, summary, risk: normalized.definition.risk, challenge, expiresAt };
+    return { confirmationToken: token, summary, risk: normalized.definition.risk, challenge, expiresAt,
+      ...(normalized.action === 'give-cart' ? { grantLines: normalized.options.grantLines } : {}) };
   }
 
   requireIdempotency(request) {
@@ -1528,7 +1600,22 @@ export class AdminApi {
     if (!isRecord(body)) fail(400, 'invalid_input', 'Request body must be a JSON object.');
     const requestedDefinition = ACTION_BY_ID.get(String(body.action ?? '').trim());
     if (requestedDefinition) this.assertActionAllowed(session, requestedDefinition);
-    const normalized = this.normalizeActionRequest(body);
+    // A completed cart must remain replayable even if its packages changed
+    // afterward. Compare the client-owned request before reading live packages;
+    // never dispatch it again to reconstruct a lost response.
+    let cartRequestHash;
+    if (String(body.action ?? '').trim() === 'give-cart') {
+      const input = normalizeAdminAction(body.action, body.options, this.config);
+      cartRequestHash = actionPayloadHash(input.action, input.options);
+      const key = this.requireIdempotency(request); this.prune();
+      const completed = this.idempotency.get(`${session.key}\u001f${key}`);
+      if (completed) {
+        if (!strictEqual(completed.cartRequestHash, cartRequestHash)) fail(409, 'idempotency_conflict', 'That Idempotency-Key was already used for a different action.');
+        this.audit('admin.action_replayed', { action: input.action, outcome: 'replayed' });
+        return completed.promise;
+      }
+    }
+    const normalized = this.normalizeActionRequest(body, session);
     if (this.logger?.healthy === false) fail(503, 'audit_unavailable', 'Security audit logging is unavailable; privileged actions are temporarily disabled.');
     const payloadHash = actionPayloadHash(normalized.action, normalized.options); const idempotencyKey = this.requireIdempotency(request);
     const cacheKey = `${session.key}\u001f${idempotencyKey}`; this.prune(); const cached = this.idempotency.get(cacheKey);
@@ -1583,13 +1670,14 @@ export class AdminApi {
         const result = await this.bridge.executeStaffCommand({
           command: normalized.action, options: normalized.options,
           level: Math.max(session.permissionLevel, normalized.definition.minimumLevel),
-          principalId: session.actorId, actor: session.username, surface: 'dashboard',
+          principalId: session.actorId, preferencePrincipalId: `web_operator_${session.accountId}`, actor: session.username, surface: 'dashboard',
         });
-        const message = safeSnippet(result, this.config.redactionSecrets, 1_900); const completedAt = this.now();
+        const message = safeSnippet(normalized.action === 'give-cart' ? result.message : result, this.config.redactionSecrets, 1_900); const completedAt = this.now();
         this.addActivity({ ...activityContext, outcome: 'succeeded', occurredAt: completedAt, durationMs: Math.max(0, completedAt - startedAt) });
         this.metrics?.increment?.('http_admin_actions_total', { action: normalized.action, outcome: 'succeeded' });
         this.audit('admin.action_succeeded', { principalId: session.accountId, role: session.role, operationId, action: normalized.action, server: normalized.options.server ?? 'cluster', outcome: 'succeeded', durationMs: Math.max(0, completedAt - startedAt) });
-        return { status: 200, body: { ok: true, outcome: 'succeeded', operationId, message } };
+        return { status: 200, body: { ok: true, outcome: 'succeeded', operationId, message,
+          ...(normalized.action === 'give-cart' ? { grantResults: result.grantResults } : {}) } };
       } catch (error) {
         const completedAt = this.now();
         const outcome = error?.operationOutcome === 'failed'
@@ -1602,10 +1690,11 @@ export class AdminApi {
           reasonCode: error?.code ?? error?.name ?? 'operation_failed', durationMs: Math.max(0, completedAt - startedAt),
         });
         this.logger?.warn?.('Dashboard admin action failed', { event: 'admin.action_failed', action: normalized.action, outcome, error: message });
-        return { status: 502, body: { ok: false, outcome, operationId, error: 'action_failed', message } };
+        return { status: 502, body: { ok: false, outcome, operationId, error: 'action_failed', message,
+          ...(normalized.action === 'give-cart' && error.grantResults ? { grantResults: error.grantResults } : {}) } };
       }
     })();
-    this.idempotency.set(cacheKey, { payloadHash, promise, expiresAt: this.now() + IDEMPOTENCY_TTL_MS });
+    this.idempotency.set(cacheKey, { payloadHash, cartRequestHash, promise, expiresAt: this.now() + IDEMPOTENCY_TTL_MS });
     return promise;
   }
 }

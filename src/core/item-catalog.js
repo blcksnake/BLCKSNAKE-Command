@@ -1,4 +1,5 @@
 import catalog from '../data/ark-items.json' with { type: 'json' };
+import compatibilityData from '../data/ark-item-compatibility.json' with { type: 'json' };
 
 const BLUEPRINT_PATTERN = /^Blueprint'\/Game\/[A-Za-z0-9_./-]+'$/;
 const DEFAULT_ITEM_NAMES = Object.freeze([
@@ -9,6 +10,27 @@ const DEFAULT_ITEM_NAMES = Object.freeze([
 
 function normalize(value) {
   return String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+// Primary registry matches take precedence. Namespace evidence is only a
+// fallback; a legacy /PrimalEarth path never establishes dual-edition support.
+function itemCompatibility(item) {
+  const verified = compatibilityData.items[item.key];
+  if (verified) {
+    if (verified.games.some((game) => !['ASA', 'ASE'].includes(game))
+      || Object.values(verified.paths).some((path) => !BLUEPRINT_PATTERN.test(path))) {
+      throw new Error(`Invalid edition blueprint metadata: ${item.key}`);
+    }
+    return Object.freeze({ games: Object.freeze([...verified.games]), verified: true, source: 'beacon-official-registry' });
+  }
+  if (/^Blueprint'\/Game\/(?:ASA\/|Packs\/|LostColony\/|ClubARk\/|Mods\/Astraeos\/)/u.test(item.blueprintPath)) {
+    return Object.freeze({ games: Object.freeze(['ASA']), verified: false, source: 'asset-namespace' });
+  }
+  if (/^Blueprint'\/Game\/Mods\/Ragnarok\/Custom_Assets\/Bosses\/PrimalItem_BossTribute_Ragnarok/u.test(item.blueprintPath)
+    || /PrimalItem_BossTribute_ValThreeBoss/u.test(item.blueprintPath)) {
+    return Object.freeze({ games: Object.freeze(['ASE']), verified: true, source: 'boss-catalog' });
+  }
+  return Object.freeze({ games: Object.freeze([]), verified: false, source: 'unverified' });
 }
 
 function validateItem(item) {
@@ -27,11 +49,27 @@ function validateItem(item) {
     throw new Error(`Invalid item number: ${item.key}`);
   }
   if (item.gfi !== null && typeof item.gfi !== 'string') throw new Error(`Invalid GFI code: ${item.key}`);
-  return Object.freeze({ ...item });
+  return Object.freeze({ ...item, compatibility: itemCompatibility(item) });
 }
 
 const items = Object.freeze(catalog.items.map(validateItem));
 const byKey = new Map(items.map((item) => [item.key, item]));
+const editionItems = new Map(items.map((item) => {
+  const metadata = compatibilityData.items[item.key];
+  return [item.key, Object.fromEntries(['ASA', 'ASE'].map((game) => {
+    const supported = item.compatibility.games.includes(game)
+      || (!item.compatibility.verified && item.compatibility.games.length === 0);
+    if (!supported) return [game, null];
+    if (!metadata) return [game, item];
+    return [game, Object.freeze({ ...item, blueprintPath: metadata.paths[game] ?? item.blueprintPath,
+      itemNumber: metadata.itemNumbers[game] ?? null })];
+  }))];
+}));
+const searchIndex = items.map((item) => {
+  const name = normalize(item.name); const gfi = normalize(item.gfi);
+  const blueprint = normalize(item.blueprintPath); const itemNumber = item.itemNumber == null ? '' : String(item.itemNumber);
+  return { item, name, gfi, blueprint, itemNumber, searchable: `${name} ${gfi} ${itemNumber} ${normalize(item.category)} ${blueprint}` };
+});
 
 function addIndex(index, key, item) {
   if (!key) return;
@@ -61,10 +99,20 @@ if (catalog.metadata?.itemCount !== items.length) throw new Error('Item catalog 
 
 export const ITEM_COUNT = items.length;
 export const ITEM_CATALOG_METADATA = Object.freeze({ ...catalog.metadata });
+export const ITEM_COMPATIBILITY_METADATA = Object.freeze({
+  verifiedAt: compatibilityData.verifiedAt, sourceUrl: compatibilityData.sourceUrl,
+  sourceSha256: compatibilityData.sourceSha256, verifiedItemCount: Object.keys(compatibilityData.items).length,
+});
 
 /** Return an item only for an exact, server-issued catalog key. */
 export function getItem(value) {
   return typeof value === 'string' ? byKey.get(value) ?? null : null;
+}
+
+export function getItemForGame(value, gameContext) {
+  const item = getItem(value); if (!item) return null;
+  const game = typeof gameContext === 'string' ? gameContext : gameContext?.game;
+  return ['ASA', 'ASE'].includes(game) ? editionItems.get(value)[game] : item;
 }
 
 /**
@@ -96,14 +144,13 @@ export function searchItems(query, limit = 25) {
   const tokens = needle.split(/\s+/).filter(Boolean);
   if (!tokens.length) return defaultItems.slice(0, maximum);
 
+  return rankedItems(needle, tokens).slice(0, maximum);
+}
+
+function rankedItems(needle, tokens, gameContext) {
   const ranked = [];
-  for (const item of items) {
-    const name = normalize(item.name);
-    const gfi = normalize(item.gfi);
-    const category = normalize(item.category);
-    const blueprint = normalize(item.blueprintPath);
-    const itemNumber = item.itemNumber === null ? '' : String(item.itemNumber);
-    const searchable = `${name} ${gfi} ${itemNumber} ${category} ${blueprint}`;
+  for (const { item, name, gfi, blueprint, itemNumber, searchable } of searchIndex) {
+    if (!getItemForGame(item.key, gameContext)) continue;
     if (!tokens.every((token) => searchable.includes(token))) continue;
     let score = 40;
     if (name === needle) score = 0;
@@ -113,11 +160,21 @@ export function searchItems(query, limit = 25) {
     else if (gfi.startsWith(needle)) score = 25;
     else if (blueprint.includes(needle)) score = 28;
     else if (name.includes(needle)) score = 30;
-    ranked.push({ item, score });
+    ranked.push({ item: getItemForGame(item.key, gameContext), score });
   }
 
   ranked.sort((left, right) => left.score - right.score
     || left.item.name.localeCompare(right.item.name, 'en', { sensitivity: 'base' })
     || left.item.key.localeCompare(right.item.key));
-  return ranked.slice(0, maximum).map(({ item }) => item);
+  return ranked.map(({ item }) => item);
+}
+
+/** Dashboard query: fixed paging, stable ranking, precomputed strings. Discord keeps its 25-choice contract. */
+export function searchCatalogItems(query, { limit = 2500, offset = 0, gameContext } = {}) {
+  const maximum = Math.min(2500, Math.max(1, Number.isSafeInteger(limit) ? limit : 2500));
+  const start = Math.max(0, Number.isSafeInteger(offset) ? offset : 0);
+  const needle = normalize(query); const tokens = needle.split(/\s+/u).filter(Boolean);
+  const matches = tokens.length ? rankedItems(needle, tokens, gameContext)
+    : items.map((item) => getItemForGame(item.key, gameContext)).filter(Boolean);
+  return { items: matches.slice(start, start + maximum), total: matches.length, offset: start, limit: maximum };
 }

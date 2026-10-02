@@ -90,10 +90,11 @@ Back up the data and keystore volumes together. Store their backups under separa
 
 ## Updates
 
-Back up the volumes, then run:
+Back up the volumes. In your existing `docker-compose.yml`, set the application image to `blcksnake/blcksnake-command:1.4.0`, preserving your port bindings and volume configuration. Pulling an older pinned tag will not upgrade it.
+
+Then run:
 
 ```bash
-docker compose down
 docker compose pull
 docker compose up -d
 docker compose ps
@@ -110,7 +111,7 @@ Do not publish the dashboard or RCON ports directly to the internet.
 ## Build from source
 
 ```bash
-docker build --pull -t blcksnake/blcksnake-command:1.3.0 .
+docker build --pull -t blcksnake/blcksnake-command:1.4.0 .
 ```
 
 Product analytics is disabled by default and requires an administrator to enable it in **Settings**. See [Configuration](docs/CONFIGURATION.md#optional-product-analytics) for the exact data sent.

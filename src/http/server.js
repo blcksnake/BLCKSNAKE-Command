@@ -206,7 +206,7 @@ function logRoute(pathname) {
     '/dashboard-ca.pem', '/admin/api/settings', '/admin/api/settings/automation-token/ack',
     '/admin/api/settings/sftp-host-key', '/admin/api/settings/restart',
     '/admin/api/bootstrap', '/admin/api/players', '/admin/api/players/record', '/admin/api/players/notes', '/admin/api/players/identifiers', '/admin/api/items', '/admin/api/packages', '/admin/api/activity',
-    '/admin/api/diagnostics', '/admin/api/actions/preview', '/admin/api/actions/execute',
+    '/admin/api/diagnostics', '/admin/api/actions/preview', '/admin/api/actions/execute', '/admin/api/item-preferences',
   ]);
   if (known.has(pathname)) return pathname;
   if (/^\/admin\/api\/operators\/[A-Za-z0-9_-]{16,64}(?:\/reset-password)?$/u.test(pathname)) {
@@ -416,6 +416,12 @@ export class HttpService {
         return this.writeAdminResult(response, this.adminApi.playerIdentifiers(request, body));
       }
       if (request.method === 'GET' && url.pathname === '/admin/api/items') return this.writeAdminResult(response, { body: this.adminApi.items(request, url) });
+      if (request.method === 'GET' && url.pathname === '/admin/api/item-preferences') return this.writeAdminResult(response, { body: this.adminApi.itemPreferences(request) });
+      if (request.method === 'PUT' && url.pathname === '/admin/api/item-preferences') {
+        this.adminApi.assertJson(request);
+        const body = await readJson(request, 2_048);
+        return this.writeAdminResult(response, { body: await this.adminApi.updateItemPreference(request, body) });
+      }
       if (request.method === 'POST' && url.pathname === '/admin/api/packages') {
         this.adminApi.assertJson(request);
         const body = await readJson(request, 64 * 1024);
